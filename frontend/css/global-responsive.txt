@@ -1,0 +1,463 @@
+/**
+ * Global Responsive CSS
+ * Handles responsiveness across all screen sizes and prevents horizontal overflow
+ */
+
+/* ============ Base Global Fixes ============ */
+* {
+    box-sizing: border-box;
+}
+
+html {
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+}
+
+body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+    position: relative;
+    margin: 0;
+    padding: 0;
+}
+
+/* Prevent all elements from exceeding viewport width
+*:not(.product-carousel__wrapper):not(.product-carousel__track):not(.product-row-scroll):not(.row.has-product-cards):not(#productsGrid):not(.products-grid):not(.table-responsive):not(.login-container) {
+    max-width: 100; */
+
+
+/* ============ Container Fixes ============ */
+.container,
+.container-fluid {
+    max-width: 450px !important;
+    width: 100%;
+    padding-left: 15px;
+    padding-right: 15px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Bootstrap container max-widths */
+@media (min-width: 576px) {
+    .container {
+        max-width: 540px;
+    }
+}
+
+@media (min-width: 768px) {
+    .container {
+        max-width: 720px;
+    }
+}
+
+@media (min-width: 992px) {
+    .container {
+        max-width: 960px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .container {
+        max-width: 1140px;
+    }
+}
+
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1320px;
+    }
+}
+
+/* ============ Row and Column Fixes ============ */
+.row {
+    margin-left: -15px;
+    margin-right: -15px;
+    max-width: 100%;
+}
+
+.row > * {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+/* Special handling for product rows that need horizontal scroll */
+.row.has-product-cards,
+.product-row-scroll {
+    margin-left: 0;
+    margin-right: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.row.has-product-cards::-webkit-scrollbar,
+.product-row-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
+.row.has-product-cards::-webkit-scrollbar-track,
+.product-row-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.row.has-product-cards::-webkit-scrollbar-thumb,
+.product-row-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+/* ============ Image and Media Fixes ============ */
+img,
+video,
+iframe,
+embed,
+object {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Ensure images don't cause overflow */
+img {
+    width: auto;
+    max-width: 100%;
+}
+
+/* ============ Header and Navigation Fixes ============ */
+header,
+.header,
+.navbar,
+.top-bar {
+    max-width: 100%;
+    width: 100%;
+}
+
+/* Hide mobile menu panel on desktop */
+@media (min-width: 992px) {
+    .mobile-menu-panel {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+    
+    .js-mobile-menu {
+        display: none !important;
+    }
+}
+
+.navbar-nav {
+    flex-wrap: wrap;
+}
+
+/* Search box responsive */
+.search-box {
+    max-width: 100%;
+}
+
+@media (max-width: 991px) {
+    .search-box {
+        width: 100%;
+    }
+}
+
+/* ============ Main Content Fixes ============ */
+main,
+section,
+article,
+aside {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* ============ Footer Fixes ============ */
+footer,
+.footer {
+    max-width: 100%;
+    width: 100%;
+}
+
+/* ============ Form Fixes ============ */
+form,
+.form-group,
+.form-control,
+.form-select,
+input,
+textarea,
+select {
+    max-width: 100%;
+    width: 100%;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+    box-sizing: border-box;
+}
+
+/* ============ Table Fixes ============ */
+table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: auto;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* ============ Product Carousel Fixes ============ */
+.product-carousel {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.product-carousel__wrapper {
+    max-width: 100%;
+}
+
+/* Desktop: No horizontal scroll for carousel wrapper */
+@media (min-width: 992px) {
+    .product-carousel__wrapper {
+        overflow-x: hidden;
+        overflow-y: hidden;
+    }
+}
+
+/* Mobile: Allow horizontal scroll for product carousels */
+@media (max-width: 991px) {
+    .product-carousel__wrapper {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+    }
+}
+
+/* ============ Banner and Hero Fixes ============ */
+.hero-carousel,
+.banner-container,
+.banner-wrapper,
+.banner-item {
+    max-width: 100%;
+    width: 100%;
+}
+
+.hero-carousel__viewport {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* ============ Card Fixes ============ */
+.card,
+.product-card,
+.category-card,
+.department-card {
+    max-width: 100%;
+    width: 100%;
+}
+
+/* ============ Grid Fixes ============ */
+.products-grid,
+.categories-grid,
+.departments-grid {
+    max-width: 100%;
+    width: 100%;
+}
+
+/* ============ Utility Classes ============ */
+.no-overflow {
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.horizontal-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.no-horizontal-scroll {
+    overflow-x: hidden;
+}
+
+/* ============ Desktop Specific Fixes ============ */
+@media (min-width: 992px) {
+    /* Ensure no horizontal scroll on desktop */
+    body {
+        overflow-x: hidden;
+    }
+    
+    /* Allow horizontal scroll only for specific containers */
+    /* Product carousels and grids can have horizontal scroll if needed */
+    /* This is handled by their individual CSS rules */
+    
+    /* Everything else should not scroll horizontally */
+    main,
+    section,
+    .container,
+    .container-fluid,
+    header,
+    footer {
+        overflow-x: hidden;
+    }
+}
+
+/* ============ Tablet Fixes ============ */
+@media (max-width: 991px) and (min-width: 768px) {
+    .container {
+        max-width: 100%;
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+
+/* ============ Mobile Fixes ============ */
+@media (max-width: 767px) {
+    html,
+    body {
+        overflow-x: hidden;
+        max-width: 100vw;
+        width: 100%;
+    }
+    
+    .container,
+    .container-fluid {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    /* Allow horizontal scroll for product containers only */
+    .product-carousel__wrapper,
+    .product-row-scroll,
+    .row.has-product-cards,
+    #productsGrid,
+    .products-grid {
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    
+    /* Prevent horizontal scroll for everything else */
+    main,
+    section:not(.product-carousel):not(.product-section),
+    header,
+    footer {
+        overflow-x: hidden;
+    }
+}
+
+/* ============ Very Small Screens ============ */
+@media (max-width: 480px) {
+    .container,
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .row {
+        margin-left: -10px;
+        margin-right: -10px;
+    }
+    
+    .row > * {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+/* ============ Fix Common Overflow Issues ============ */
+/* Prevent text from causing overflow */
+p,
+h1, h2, h3, h4, h5, h6,
+span,
+div,
+a {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Prevent long URLs from breaking layout */
+a {
+    word-break: break-all;
+}
+
+/* Prevent code blocks from overflowing */
+pre,
+code {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* ============ Admin Panel Responsive ============ */
+@media (max-width: 991px) {
+    .admin-container {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    .sidebar,
+    .content-area {
+        max-width: 100%;
+    }
+}
+
+/* ============ Modal Fixes ============ */
+.modal,
+.modal-dialog {
+    max-width: 100%;
+}
+
+@media (max-width: 767px) {
+    .modal-dialog {
+        margin: 10px;
+        max-width: calc(100% - 20px);
+    }
+}
+
+/* ============ Ensure Viewport Meta Tag Works ============ */
+/* This ensures the viewport meta tag is respected */
+@supports (width: 100vw) {
+    html {
+        width: 100vw;
+        max-width: 100vw;
+    }
+    
+    body {
+        width: 100%;
+        max-width: 100vw;
+    }
+}
+
+/* ============ Fix for Elements with Fixed Widths ============ */
+/* Override any fixed widths that might cause overflow */
+@media (max-width: 1200px) {
+    [style*="width"]:not([style*="max-width"]):not([style*="min-width"]) {
+        max-width: 100% !important;
+    }
+}
+
+/* ============ Debug Mode (Remove in production) ============ */
+/* Uncomment to see which elements are causing overflow */
+/*
+* {
+    outline: 1px solid red;
+}
+*/
+

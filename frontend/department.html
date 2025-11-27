@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Department - D.Watson Pharmacy</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/global-fonts.css?v=1">
+    <link rel="stylesheet" href="/css/style.css?v=2">
+    <link rel="stylesheet" href="/css/dwatson-styles.css?v=2">
+    <link rel="stylesheet" href="/css/mobile-fix.css?v=1">
+    <link rel="stylesheet" href="/css/global-responsive.css?v=1">
+    <script src="/js/mobile-scroll-helper.js?v=1" defer></script>
+</head>
+<body>
+    <!-- Header (dwatsoncosmetics.pk style) -->
+    <header id="header" class="header logo-center_2l header-2-lines">
+        <!-- Top Scrolling Announcement Bar (Will be replaced by scrolling text section) -->
+        <div id="shopify-section-top-header" class="shopify-section cms-top-header" style="display: none;">
+            <!-- This will be replaced by dynamic scrolling text section -->
+        </div>
+
+        <!-- Main Header -->
+        <div class="header-main-wrap">
+            <div class="header-top">
+            <div class="container">
+                    <div class="row align-items-center">
+                        <!-- Mobile Menu Button -->
+                        <div class="col-3 d-lg-none">
+                            <button class="js-mobile-menu btn p-0 border-0 bg-transparent" type="button" aria-label="Toggle navigation">
+                                <span class="icon">
+                                    <i class="fas fa-bars" style="color: #ffffff; font-size: 22px;"></i>
+                                </span>
+                            </button>
+                        </div>
+                        <!-- Search Bar (Left Side) -->
+                        <div class="header-search-left hide-mobile col-md-3">
+                            <div class="header-search-wrapper">
+                                <form action="/products.html" method="get" class="header-search-form">
+                                    <input type="text" name="search" class="header-search-input" placeholder="Search for products ..." autocomplete="off">
+                                    <button type="submit" class="header-search-button" aria-label="Search">
+                                        <i class="icon-search"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Mobile Logo -->
+                        <div class="header-logo hide-desktop flex-1">
+                            <a href="/" class="site-header__logo-image" title="D.Watson">
+                                <img src="/images/logo.png" alt="D.Watson" loading="eager" class="header-logo-img">
+                            </a>
+                        </div>
+
+                        <!-- Desktop Logo (Center) -->
+                        <div class="header-logo hide-mobile col-md-6">
+                            <h1>
+                                <a href="/" class="site-header__logo-image" aria-label="D.Watson">
+                                    <img src="/images/logo.png" alt="D.Watson" loading="eager" class="header-logo-img">
+                                </a>
+                            </h1>
+                        </div>
+
+                        <!-- Right Header Controls (Account, Wishlist, Cart) -->
+                        <div class="header-top-meta col-md-3 col-9">
+                            <ul class="header-control">
+                                <!-- User Icon (Person) - visible on all screen sizes -->
+                                <li class="item-list signin">
+                                    <a href="/login.html" class="header-icon" title="Login">
+                                        <span class="icon"><i class="far fa-user"></i></span>
+                                    </a>
+                                </li>
+                                <!-- Heart Icon (Wishlist) -->
+                                <li class="item-list wishlist hide-mobile">
+                                    <a href="/wishlist.html" class="header-icon" title="Wishlist">
+                                        <span class="icon"><i class="far fa-heart"></i></span>
+                                        <span class="header__counter wishlist-count">0</span>
+                                    </a>
+                                </li>
+                                <!-- Orders Icon (Stacked Items) -->
+                                <li class="item-list notifications hide-mobile">
+                                    <a href="/orders.html" class="header-icon" title="Orders">
+                                        <span class="icon"><i class="far fa-copy"></i></span>
+                                        <span class="header__counter notification-count">0</span>
+                                    </a>
+                                </li>
+                                <!-- Shopping Bag Icon (Cart) -->
+                                <li class="item-list cart-block">
+                                    <a href="/cart.html" class="header-icon cart-icon" title="Cart">
+                                        <span class="icon"><i class="fas fa-shopping-bag"></i></span>
+                                        <span class="header__counter cart-count">0</span>
+                                    </a>
+                                </li>
+                                <!-- Mobile Search Icon -->
+                                <li class="header_search hide-desktop">
+                                    <a href="/search" class="header-search push_side header-icon" data-id="#search_pupop" title="Search">
+                                        <span class="icon"><i class="icon-search"></i></span>
+                                    </a>
+                                </li>
+                            </ul>
+                    </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Navigation -->
+            <div class="header-nav">
+                <div class="header-nav-inner">
+                    <div class="box-header-nav">
+                        <div class="container-wapper">
+                            <nav class="main-menu-wrapper">
+                                <ul id="menu-main-menu" class="main-menu clone-main-menu">
+                                    <li class="menu-item">
+                                        <a href="/products.html?filter=discounted" class="cms-item-title">Sale</a>
+                                    </li>
+                                    <li class="menu-item type_dropdown has-children">
+                                        <a href="#" class="cms-item-title dropdown-toggle nav-category-link" data-category-key="makeup" id="makeupDropdown" data-bs-toggle="dropdown">
+                                            Makeup
+                                            <span class="icon-dropdown"><i class="icon-angle-down"></i></span>
+                                        </a>
+                                        <ul class="dropdown-menu sub-menu" id="makeupMenu">
+                                            <!-- Categories loaded dynamically -->
+                                        </ul>
+                                    </li>
+                                    <li class="menu-item type_dropdown has-children">
+                                        <a href="#" class="cms-item-title dropdown-toggle nav-category-link" data-category-key="skincare" id="skincareDropdown" data-bs-toggle="dropdown">
+                                            Skincare
+                                            <span class="icon-dropdown"><i class="icon-angle-down"></i></span>
+                                        </a>
+                                        <ul class="dropdown-menu sub-menu" id="skincareMenu">
+                                            <!-- Categories loaded dynamically -->
+                                        </ul>
+                        </li>
+                                    <li class="menu-item type_dropdown has-children">
+                                        <a href="#" class="cms-item-title dropdown-toggle nav-category-link" data-category-key="haircare" id="haircareDropdown" data-bs-toggle="dropdown">
+                                            Haircare
+                                            <span class="icon-dropdown"><i class="icon-angle-down"></i></span>
+                                        </a>
+                                        <ul class="dropdown-menu sub-menu" id="haircareMenu">
+                                            <!-- Categories loaded dynamically -->
+                            </ul>
+                        </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="shampoo">Shampoo</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="lingerie">Lingerie</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="perfumes">Perfumes</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="watches">Watches</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="toiletries">Toiletries</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="electronics">Electronics</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="optics">Optics</a>
+                        </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="toys">Toys</a>
+                        </li>
+                                    <li class="menu-item type_dropdown has-children">
+                                        <a href="#" class="cms-item-title dropdown-toggle" id="departmentsDropdown" data-bs-toggle="dropdown">
+                                            Shop
+                                            <span class="icon-dropdown"><i class="icon-angle-down"></i></span>
+                                        </a>
+                                        <ul class="dropdown-menu sub-menu" id="departmentsMenu">
+                                            <!-- Departments loaded dynamically -->
+                                        </ul>
+                        </li>
+                                    <li class="menu-item">
+                                        <a href="/blog.html" class="cms-item-title">Blog</a>
+                        </li>
+                    </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Menu Panel -->
+    <div class="mobile-menu-panel" id="mobileMenuPanel">
+        <div class="mobile-menu-content">
+            <button class="mobile-menu-close" type="button" aria-label="Close navigation">&times;</button>
+            <ul class="mobile-menu-list" id="mobileMenuList">
+                <li class="menu-item">
+                    <a href="/products.html?filter=discounted" class="cms-item-title">11.11 Sale</a>
+                </li>
+                <li class="menu-item has-children">
+                    <a href="/products.html?category=makeup" class="cms-item-title">
+                        Makeup
+                    </a>
+                    <ul class="dropdown-menu sub-menu" id="mobileMakeupMenu">
+                        <!-- Makeup categories (optional, can be synced later) -->
+                    </ul>
+                </li>
+                <li class="menu-item has-children">
+                    <a href="/products.html?category=skincare" class="cms-item-title">
+                        Skin Care
+                    </a>
+                    <ul class="dropdown-menu sub-menu" id="mobileSkincareMenu">
+                        <!-- Skincare categories (optional, can be synced later) -->
+                    </ul>
+                </li>
+                <li class="menu-item has-children">
+                    <a href="/products.html?category=haircare" class="cms-item-title">
+                        Hair Care
+                    </a>
+                    <ul class="dropdown-menu sub-menu" id="mobileHaircareMenu">
+                        <!-- Haircare categories (optional, can be synced later) -->
+                    </ul>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=shampoo" class="cms-item-title">Shampoo</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=lingerie" class="cms-item-title">Lingerie</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=perfumes" class="cms-item-title">Perfumes</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=watches" class="cms-item-title">Watches</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=toiletries" class="cms-item-title">Toiletries</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=electronics" class="cms-item-title">Electronics</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=optics" class="cms-item-title">Optics</a>
+                </li>
+                <li class="menu-item has-children">
+                    <a href="#" class="cms-item-title">
+                        Shop
+                    </a>
+                    <ul class="dropdown-menu sub-menu" id="mobileDepartmentsMenu">
+                        <!-- Departments can be injected here if needed -->
+                    </ul>
+                </li>
+                <li class="menu-item">
+                    <a href="/blog.html" class="cms-item-title">Blog</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Search Popup -->
+    <div id="search_pupop" class="push-side-panel">
+        <div class="push-side-panel__wrapper">
+            <span class="close-push">×</span>
+            <div class="push-side-panel__content">
+                <h3>Search Products</h3>
+                <form action="/products.html" method="get" class="search-form">
+                    <input type="text" name="search" id="searchInput" placeholder="Search for products..." autocomplete="off">
+                    <button type="submit"><i class="icon-search"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="bg-light py-3">
+            <div class="container">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="/">Home</a></li>
+                    <li class="breadcrumb-item active" id="breadcrumbDepartment">Department</li>
+                </ol>
+            </div>
+        </nav>
+
+        <!-- Department Header -->
+        <section class="py-5 bg-light">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <img id="departmentImage" src="" alt="" class="img-fluid rounded shadow" style="max-height: 300px; width: 100%; object-fit: cover;">
+                    </div>
+                    <div class="col-md-8">
+                        <h1 id="departmentName" class="display-4 mb-3"></h1>
+                        <p id="departmentDescription" class="lead"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Categories Section -->
+        <section class="py-5" id="categoriesSection">
+            <div class="container">
+                <h2 class="mb-4">Categories</h2>
+                <div class="row g-4" id="categoriesGrid">
+                    <!-- Categories will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Products Section -->
+        <section class="py-5 bg-light">
+            <div class="container">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">Products</h2>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary active" data-view="grid">
+                            <i class="fas fa-th"></i> Grid
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" data-view="list">
+                            <i class="fas fa-list"></i> List
+                        </button>
+                    </div>
+                </div>
+                <div class="row g-4" id="productsGrid">
+                    <!-- Products will be loaded here -->
+                </div>
+                <div id="noProducts" class="text-center py-5" style="display: none;">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No products found in this department.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <!-- Footer - Dynamically loaded from database -->
+    <footer class="footer" id="siteFooter">
+        <!-- Footer content will be loaded dynamically from database -->
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js?v=6" defer></script>
+    <script src="/js/department.js"></script>
+</body>
+</html>
+

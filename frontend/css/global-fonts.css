@@ -1,0 +1,48 @@
+/**
+ * Global Font Styles
+ * Montserrat for headings, Inter for body text
+ */
+
+/* Import fonts - will be loaded from HTML */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Global heading styles */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: "Montserrat", sans-serif !important;
+}
+
+/* Global body text */
+body {
+    font-family: "Inter", sans-serif !important;
+}
+
+/* Form elements */
+input,
+button,
+textarea,
+select,
+label {
+    font-family: "Inter", sans-serif !important;
+}
+
+/* Links and paragraphs */
+a,
+p,
+span,
+div,
+li,
+td,
+th {
+    font-family: "Inter", sans-serif !important;
+}
+
+/* Buttons and form controls inherit from body */
+button,
+.btn,
+input[type="submit"],
+input[type="button"] {
+    font-family: "Inter", sans-serif !important;
+}
+
+
