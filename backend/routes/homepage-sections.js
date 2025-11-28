@@ -5,6 +5,7 @@ const HomepageSection = require('../models/HomepageSection');
 const Slider = require('../models/Slider');
 const Banner = require('../models/Banner');
 const Category = require('../models/Category');
+const Department = require('../models/Department');
 const Product = require('../models/Product');
 
 const router = express.Router();
@@ -98,12 +99,60 @@ router.post('/', adminAuth, async (req, res) => {
             payload.ordering = lastSection ? lastSection.ordering + 1 : 0;
         }
         
+        // Validate required fields
+        if (!payload.name || !payload.type) {
+            return res.status(400).json({ 
+                message: 'Name and type are required fields',
+                details: { name: payload.name, type: payload.type }
+            });
+        }
+        
+        // Validate type enum
+        const validTypes = ['heroSlider', 'scrollingText', 'categoryFeatured', 'categoryGrid', 'categoryCircles', 'departmentGrid', 'productTabs', 'productCarousel', 'bannerFullWidth', 'videoBanner', 'collectionLinks', 'newsletterSocial', 'brandMarquee', 'customHTML'];
+        if (!validTypes.includes(payload.type)) {
+            return res.status(400).json({ 
+                message: `Invalid section type: ${payload.type}. Valid types are: ${validTypes.join(', ')}`,
+                receivedType: payload.type
+            });
+        }
+        
+        console.log('Creating homepage section with payload:', JSON.stringify(payload, null, 2));
+        
         const section = new HomepageSection(payload);
         await section.save();
         
         res.status(201).json(section);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Error creating homepage section:', error);
+        
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            const validationErrors = {};
+            Object.keys(error.errors).forEach(key => {
+                validationErrors[key] = error.errors[key].message;
+            });
+            return res.status(400).json({ 
+                message: 'Validation error',
+                errors: validationErrors,
+                details: error.message
+            });
+        }
+        
+        // Handle duplicate key error (unique constraint)
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern)[0];
+            return res.status(400).json({ 
+                message: `A section with this ${field} already exists`,
+                field: field,
+                value: error.keyValue[field]
+            });
+        }
+        
+        res.status(400).json({ 
+            message: error.message || 'Error creating homepage section',
+            error: error.name,
+            details: error.toString()
+        });
     }
 });
 
@@ -143,7 +192,36 @@ router.put('/:id', adminAuth, async (req, res) => {
         
         res.json(section);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Error updating homepage section:', error);
+        
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            const validationErrors = {};
+            Object.keys(error.errors).forEach(key => {
+                validationErrors[key] = error.errors[key].message;
+            });
+            return res.status(400).json({ 
+                message: 'Validation error',
+                errors: validationErrors,
+                details: error.message
+            });
+        }
+        
+        // Handle duplicate key error (unique constraint)
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern)[0];
+            return res.status(400).json({ 
+                message: `A section with this ${field} already exists`,
+                field: field,
+                value: error.keyValue[field]
+            });
+        }
+        
+        res.status(400).json({ 
+            message: error.message || 'Error updating homepage section',
+            error: error.name,
+            details: error.toString()
+        });
     }
 });
 
@@ -214,6 +292,14 @@ router.get('/:id/data', adminAuth, async (req, res) => {
                 data = { categories };
                 break;
                 
+            case 'departmentGrid':
+                // Get active departments
+                const departments = await Department.find({ isActive: true })
+                    .populate('imageUpload')
+                    .sort({ name: 1 });
+                data = { departments };
+                break;
+                
             case 'productTabs':
             case 'productCarousel':
                 // Get products based on filters
@@ -221,13 +307,15 @@ router.get('/:id/data', adminAuth, async (req, res) => {
                 if (section.config?.categoryId) {
                     productFilters.category = section.config.categoryId;
                 }
-                if (section.config?.isFeatured) {
+                // Section filter has highest priority - if section is specified, filter by it
+                if (section.config?.section) {
+                    productFilters.sections = { $in: [section.config.section] };
+                    console.log(`🔍 Homepage Section Data - Filtering by section: "${section.config.section}"`);
+                } else if (section.config?.isFeatured) {
                     productFilters.isFeatured = true;
-                }
-                if (section.config?.isNewArrival) {
+                } else if (section.config?.isNewArrival) {
                     productFilters.isNewArrival = true;
-                }
-                if (section.config?.isTrending) {
+                } else if (section.config?.isTrending) {
                     productFilters.isTrending = true;
                 }
                 productFilters.isActive = true;

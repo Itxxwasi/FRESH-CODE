@@ -46,6 +46,10 @@ const ProductSchema = new mongoose.Schema({
         ref: 'Category',
         required: true
     },
+    subcategory: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Subcategory'
+    },
     department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department',
@@ -80,7 +84,7 @@ const ProductSchema = new mongoose.Schema({
         type: [String],
         default: [],
         enum: [
-            'Top Selling',
+            'Top Selling Product',
             'Lingerie Collection',
             'Product Feature Collection',
             '10.10 Mega Sale',

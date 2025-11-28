@@ -165,6 +165,18 @@
         saveCategory();
     });
     
+    // Subcategory handlers
+    $('#add-subcategory-btn').click(function() {
+        resetSubcategoryForm();
+        loadCategoriesToSelect('#subcategoryCategory');
+        $('#subcategoryModalTitle').text('Add Subcategory');
+        $('#subcategoryModal').modal('show');
+    });
+    
+    $('#saveSubcategory').click(function() {
+        saveSubcategory();
+    });
+    
     // Product handlers
     $('#add-product-btn').click(function() {
         resetProductForm();
@@ -692,6 +704,9 @@ function loadSectionData(sectionId) {
         case 'categories-section':
             loadCategories();
             break;
+        case 'subcategories-section':
+            loadSubcategories();
+            break;
         case 'products-section':
             loadProducts(1);
             loadFilterCategories();
@@ -843,6 +858,104 @@ function loadCategories() {
         })
         .fail(function() {
             showAlert('Error loading categories', 'danger');
+        });
+}
+
+function loadSubcategories() {
+    $.ajax({
+        url: '/api/admin/subcategories',
+        method: 'GET',
+        dataType: 'json',
+        contentType: 'application/json',
+        error: function(xhr, status, error) {
+            console.error('Error loading subcategories:', status, error);
+            console.error('Response:', xhr.responseText);
+            
+            // Check if we got HTML instead of JSON (likely auth redirect or 404)
+            if (xhr.responseText && xhr.responseText.trim().startsWith('<!DOCTYPE')) {
+                showAlert('Authentication required. Please log in again.', 'warning');
+                // Optionally redirect to login
+                // window.location.href = '/login.html';
+            } else if (xhr.status === 404) {
+                showAlert('Subcategories API endpoint not found. Please check backend routes.', 'danger');
+            } else {
+                showAlert('Error loading subcategories: ' + (xhr.responseJSON?.message || error), 'danger');
+            }
+            $('#subcategories-table').html('<tr><td colspan="7" class="text-center text-danger">Error loading subcategories</td></tr>');
+        }
+    })
+        .done(function(response) {
+            // Handle both array response and object with array
+            let subcategories = response;
+            if (response && !Array.isArray(response)) {
+                if (response.subcategories && Array.isArray(response.subcategories)) {
+                    subcategories = response.subcategories;
+                } else if (response.data && Array.isArray(response.data)) {
+                    subcategories = response.data;
+                } else {
+                    console.error('Unexpected response format:', response);
+                    showAlert('Error: Invalid response format from server', 'danger');
+                    $('#subcategories-table').html('<tr><td colspan="7" class="text-center text-danger">Invalid response format</td></tr>');
+                    return;
+                }
+            }
+            
+            // Ensure subcategories is an array
+            if (!Array.isArray(subcategories)) {
+                console.error('Subcategories is not an array:', subcategories);
+                showAlert('Error: Subcategories data is not in the expected format', 'danger');
+                $('#subcategories-table').html('<tr><td colspan="7" class="text-center">No subcategories found</td></tr>');
+                return;
+            }
+            
+            let html = '';
+            
+            if (subcategories.length === 0) {
+                html = '<tr><td colspan="7" class="text-center text-muted">No subcategories found. Click "Add Subcategory" to create one.</td></tr>';
+            } else {
+                subcategories.forEach(function(subcat) {
+                const imageUrl = resolveItemImage(subcat) || IMAGE_PLACEHOLDER;
+                const categoryName = subcat.category ? subcat.category.name : 'N/A';
+                html += `
+                    <tr>
+                        <td>${subcat.name}</td>
+                        <td>${categoryName}</td>
+                        <td>${subcat.description || ''}</td>
+                        <td><img src="${imageUrl}" alt="${subcat.name}" class="table-thumb"></td>
+                        <td>${subcat.ordering || 0}</td>
+                        <td>
+                            <span class="badge ${subcat.isActive ? 'bg-success' : 'bg-danger'}">
+                                ${subcat.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary btn-action edit-subcategory" data-id="${subcat._id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger btn-action delete-subcategory" data-id="${subcat._id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                });
+            }
+            
+            $('#subcategories-table').html(html);
+            
+            // Add event handlers
+            $('.edit-subcategory').click(function() {
+                const id = $(this).data('id');
+                editSubcategory(id);
+            });
+            
+            $('.delete-subcategory').click(function() {
+                const id = $(this).data('id');
+                deleteSubcategory(id);
+            });
+        })
+        .fail(function() {
+            showAlert('Error loading subcategories', 'danger');
         });
 }
 
@@ -1828,12 +1941,64 @@ function loadDepartmentsToSelect(selectId, options = {}) {
     );
 }
 
+function loadSubcategoriesToSelect(selectId, categoryId, options = {}) {
+    const { selectedId } = options;
+
+    if (!categoryId) {
+        $(selectId).html('<option value="">Select Category First</option>');
+        return $.Deferred().resolve([]).promise();
+    }
+
+    return $.get(`/api/subcategories/category/${categoryId}`).then(
+        function (subcategories = []) {
+            let html = '<option value="">No Subcategory</option>';
+
+            subcategories.forEach(function (subcat) {
+                const isActive = subcat.isActive !== false;
+                const label = isActive ? subcat.name : `${subcat.name} (inactive)`;
+                html += `<option value="${subcat._id}">${label}</option>`;
+            });
+
+            $(selectId).html(html);
+
+            if (selectedId) {
+                $(selectId).val(String(selectedId));
+            }
+
+            return subcategories;
+        },
+        function () {
+            $(selectId).html('<option value="">Unable to load subcategories</option>');
+            return [];
+        }
+    );
+}
+
 function loadCategoriesToSelect(selectId, departmentId, options = {}) {
     const { selectedId } = options;
 
     if (!departmentId) {
-        $(selectId).html('<option value="">Select Department First</option>');
-        return $.Deferred().resolve([]).promise();
+        // If no department, load all categories
+        return $.get('/api/categories').then(
+            function (categories = []) {
+                let html = '<option value="">Select Category</option>';
+                categories.forEach(function (cat) {
+                    const isActive = cat.isActive !== false;
+                    const label = isActive ? cat.name : `${cat.name} (inactive)`;
+                    html += `<option value="${cat._id}">${label}</option>`;
+                });
+                $(selectId).html(html);
+                if (selectedId) {
+                    $(selectId).val(String(selectedId));
+                }
+                return categories;
+            },
+            function () {
+                $(selectId).html('<option value="">Unable to load categories</option>');
+                showAlert('Error loading categories', 'danger');
+                return [];
+            }
+        );
     }
 
     return $.get(`/api/categories/department/${departmentId}`).then(
@@ -1878,6 +2043,16 @@ function resetCategoryForm() {
     $('#categoryImageFileId').val('');
     setImagePreview('#categoryImagePreview', null);
     $('#categoryDepartment').html('<option value="">Select Department</option>');
+}
+
+function resetSubcategoryForm() {
+    $('#subcategoryForm')[0].reset();
+    $('#subcategoryId').val('');
+    $('#subcategoryImageFile').val('');
+    $('#subcategoryImageFileId').val('');
+    $('#subcategoryOrdering').val('0');
+    setImagePreview('#subcategoryImagePreview', null);
+    $('#subcategoryCategory').html('<option value="">Select Category</option>');
 }
 
 function resetProductForm() {
@@ -2077,6 +2252,129 @@ async function saveCategory() {
     }
 }
 
+async function saveSubcategory() {
+    const id = $('#subcategoryId').val();
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/subcategories/${id}` : '/api/subcategories';
+
+    try {
+        const name = $('#subcategoryName').val()?.trim();
+        const category = $('#subcategoryCategory').val();
+
+        if (!name) {
+            showAlert('Subcategory name is required', 'warning');
+            return;
+        }
+
+        if (!category) {
+            showAlert('Please select a category', 'warning');
+            return;
+        }
+
+        const uploadedMedia = await uploadImageIfNeeded('#subcategoryImageFile', 'subcategories');
+        const imageUrl = ($('#subcategoryImage').val() || '').trim();
+        const existingFileId = normaliseFileId($('#subcategoryImageFileId').val());
+
+        const payload = {
+            name: name,
+            category: category,
+            description: $('#subcategoryDescription').val() || '',
+            ordering: parseInt($('#subcategoryOrdering').val()) || 0,
+            isActive: $('#subcategoryActive').is(':checked')
+        };
+
+        if (uploadedMedia) {
+            payload.image = uploadedMedia.url;
+            payload.imageFileId = uploadedMedia._id;
+            $('#subcategoryImageFileId').val(uploadedMedia._id);
+            $('#subcategoryImage').val(uploadedMedia.url);
+            setImagePreview('#subcategoryImagePreview', uploadedMedia.url);
+        } else {
+            if (imageUrl) {
+                payload.image = imageUrl;
+            }
+            if (existingFileId) {
+                payload.imageFileId = existingFileId;
+            }
+        }
+
+        const response = await $.ajax({
+            url,
+            method,
+            contentType: 'application/json',
+            data: JSON.stringify(payload)
+        });
+
+        $('#subcategoryModal').modal('hide');
+        showAlert(id ? 'Subcategory updated successfully' : 'Subcategory added successfully', 'success');
+        loadSubcategories();
+        loadDashboardData();
+    } catch (error) {
+        console.error('Error saving subcategory', error);
+        
+        let errorMessage = 'Error saving subcategory';
+        if (error.responseJSON && error.responseJSON.message) {
+            errorMessage = error.responseJSON.message;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        showAlert(errorMessage, 'danger');
+    }
+}
+
+function editSubcategory(id) {
+    $.get(`/api/subcategories/${id}`)
+        .done(function(subcat) {
+            $('#subcategoryId').val(subcat._id);
+            $('#subcategoryName').val(subcat.name);
+            $('#subcategoryDescription').val(subcat.description || '');
+            $('#subcategoryOrdering').val(subcat.ordering || 0);
+            $('#subcategoryActive').prop('checked', subcat.isActive !== false);
+            
+            // Load categories and select the current one
+            const categoryId = subcat.category._id || subcat.category;
+            loadCategoriesToSelect('#subcategoryCategory', null, { selectedId: categoryId });
+            
+            // Handle image
+            if (subcat.image) {
+                $('#subcategoryImage').val(subcat.image);
+                setImagePreview('#subcategoryImagePreview', subcat.image);
+            } else {
+                setImagePreview('#subcategoryImagePreview', null);
+            }
+            
+            if (subcat.imageUpload) {
+                $('#subcategoryImageFileId').val(subcat.imageUpload._id);
+            }
+            
+            $('#subcategoryModalTitle').text('Edit Subcategory');
+            $('#subcategoryModal').modal('show');
+        })
+        .fail(function() {
+            showAlert('Error loading subcategory', 'danger');
+        });
+}
+
+function deleteSubcategory(id) {
+    if (!confirm('Are you sure you want to delete this subcategory?')) {
+        return;
+    }
+    
+    $.ajax({
+        url: `/api/subcategories/${id}`,
+        method: 'DELETE'
+    })
+        .done(function() {
+            showAlert('Subcategory deleted successfully', 'success');
+            loadSubcategories();
+            loadDashboardData();
+        })
+        .fail(function() {
+            showAlert('Error deleting subcategory', 'danger');
+        });
+}
+
 async function saveProduct() {
     const id = $('#productId').val();
     const method = id ? 'PUT' : 'POST';
@@ -2144,6 +2442,8 @@ async function saveProduct() {
             selectedSections.push($(this).val());
         });
 
+        const subcategory = $('#productSubcategory').val();
+        
     const payload = {
             name: name,
             price: price,
@@ -2159,6 +2459,10 @@ async function saveProduct() {
             sections: selectedSections,
             isActive: $('#productActive').is(':checked')
         };
+        
+        if (subcategory) {
+            payload.subcategory = subcategory;
+        }
 
         if (!uploadedMedia && !imageUrl && !existingFileId) {
             showAlert('Please provide an image via URL or by uploading a file.', 'warning');
@@ -2352,7 +2656,8 @@ async function uploadBannerFile(fileInputSelector) {
         const sizeValue = $('#bannerSize').val() || 'medium';
         
         if (titleValue) formData.append('title', titleValue);
-        if (descriptionValue) formData.append('description', descriptionValue);
+        // Always send description - backend will use title as default if empty
+        formData.append('description', descriptionValue || titleValue || 'Banner');
         if (linkValue) formData.append('link', linkValue);
         if (positionValue) formData.append('position', positionValue);
         if (sizeValue) formData.append('size', sizeValue);
@@ -2420,6 +2725,8 @@ async function saveBanner() {
             const positionValue = $('#bannerPosition').val() || 'middle';
             const sizeValue = $('#bannerSize').val() || 'medium';
 
+            console.log('Saving banner with position:', positionValue);
+
             const payload = {
                 title: titleValue || 'Homepage Banner',
                 description: descriptionValue || 'Banner description',
@@ -2428,6 +2735,8 @@ async function saveBanner() {
                 size: sizeValue,
                 isActive: $('#bannerActive').is(':checked')
             };
+            
+            console.log('Banner payload:', payload);
 
             if (uploadedMedia) {
                 payload.image = uploadedMedia.url;
@@ -2456,12 +2765,26 @@ async function saveBanner() {
             loadBanners();
         } catch (error) {
             console.error('Error saving banner', error);
+            console.error('Error details:', {
+                status: error.status,
+                statusText: error.statusText,
+                responseText: error.responseText,
+                responseJSON: error.responseJSON,
+                message: error.message
+            });
             
             let errorMessage = 'Error saving banner';
-            if (error.message) {
-                errorMessage = error.message;
-            } else if (error.responseJSON && error.responseJSON.message) {
+            if (error.responseJSON && error.responseJSON.message) {
                 errorMessage = error.responseJSON.message;
+            } else if (error.responseText) {
+                try {
+                    const errorData = JSON.parse(error.responseText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {
+                    errorMessage = error.responseText || errorMessage;
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
             } else if (typeof error === 'string') {
                 errorMessage = error;
             }
@@ -2703,6 +3026,17 @@ async function editProduct(id) {
         $('#productDepartment').val(departmentId);
         await loadCategoriesToSelect('#productCategory', departmentId, { selectedId: categoryId });
         $('#productCategory').val(categoryId);
+        
+        // Load subcategories if category is selected
+        if (categoryId) {
+            const subcategoryId = product.subcategory ? (product.subcategory._id || product.subcategory) : '';
+            await loadSubcategoriesToSelect('#productSubcategory', categoryId, { selectedId: subcategoryId });
+            if (subcategoryId) {
+                $('#productSubcategory').val(subcategoryId);
+            }
+        } else {
+            $('#productSubcategory').html('<option value="">Select Category First</option>');
+        }
 
         $('#productModalTitle').text('Edit Product');
         $('#productModal').modal('show');
@@ -3482,6 +3816,7 @@ function getSectionTypeLabel(type) {
         'categoryFeatured': 'Category Featured',
         'categoryGrid': 'Category Grid',
         'categoryCircles': 'Category Circles',
+        'departmentGrid': 'Department Grid',
         'productTabs': 'Product Tabs',
         'productCarousel': 'Product Carousel',
         'bannerFullWidth': 'Full-Width Banner',
@@ -3501,6 +3836,7 @@ function getSectionTypeBadge(type) {
         'categoryFeatured': 'bg-success',
         'categoryGrid': 'bg-success',
         'categoryCircles': 'bg-success',
+        'departmentGrid': 'bg-info',
         'productTabs': 'bg-warning',
         'productCarousel': 'bg-warning',
         'bannerFullWidth': 'bg-secondary',
@@ -3630,6 +3966,46 @@ function loadHomepageSectionConfig(sectionType) {
                                 <div class="form-check mt-4">
                                     <input class="form-check-input" type="checkbox" id="configShowTitle" checked>
                                     <label class="form-check-label" for="configShowTitle">Show Category Titles</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'departmentGrid':
+            configHtml = `
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <strong>Department Grid Configuration</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Select Departments (will be loaded from Departments section)</label>
+                            <div id="departmentList" class="border rounded p-3">
+                                <p class="text-muted">Departments will be listed here after section is created</p>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Grid Columns</label>
+                                <select class="form-select" id="configGridColumns">
+                                    <option value="2">2 Columns</option>
+                                    <option value="3">3 Columns</option>
+                                    <option value="4" selected>4 Columns</option>
+                                    <option value="6">6 Columns</option>
+                                    <option value="8">8 Columns</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Limit (max departments to show)</label>
+                                <input type="number" class="form-control" id="configLimit" value="8" min="1" max="20">
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input" type="checkbox" id="configShowTitle" checked>
+                                    <label class="form-check-label" for="configShowTitle">Show Department Titles</label>
                                 </div>
                             </div>
                         </div>
@@ -3904,6 +4280,30 @@ async function loadCategoriesListForConfig() {
     }
 }
 
+async function loadDepartmentsListForConfig() {
+    try {
+        const departments = await $.get('/api/departments');
+        let html = '';
+        departments.forEach(dept => {
+            if (dept.isActive) {
+                html += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="departmentIds" value="${dept._id}" id="department_${dept._id}">
+                        <label class="form-check-label" for="department_${dept._id}">${dept.name}</label>
+                    </div>
+                `;
+            }
+        });
+        if (html) {
+            $('#departmentList').html(html);
+        } else {
+            $('#departmentList').html('<p class="text-muted">No active departments found. Create departments first.</p>');
+        }
+    } catch (error) {
+        console.error('Error loading departments:', error);
+    }
+}
+
 async function loadBannersForConfig() {
     try {
         const banners = await $.get('/api/banners');
@@ -3943,12 +4343,24 @@ async function saveHomepageSection() {
         const sectionType = $('#homepageSectionType').val();
         const config = buildHomepageSectionConfig(sectionType);
         
+        // Validate required fields
+        const sectionName = $('#homepageSectionName').val()?.trim();
+        if (!sectionName) {
+            showAlert('Section name is required', 'warning');
+            return;
+        }
+        
+        if (!sectionType) {
+            showAlert('Section type is required', 'warning');
+            return;
+        }
+        
         const payload = {
-            name: $('#homepageSectionName').val(),
+            name: sectionName,
             type: sectionType,
-            title: $('#homepageSectionTitle').val() || undefined,
-            subtitle: $('#homepageSectionSubtitle').val() || undefined,
-            description: $('#homepageSectionDescription').val() || undefined,
+            title: $('#homepageSectionTitle').val()?.trim() || undefined,
+            subtitle: $('#homepageSectionSubtitle').val()?.trim() || undefined,
+            description: $('#homepageSectionDescription').val()?.trim() || undefined,
             config: config,
             ordering: parseInt($('#homepageSectionOrdering').val(), 10) || 0,
             isActive: $('#homepageSectionActive').is(':checked'),
@@ -3959,6 +4371,15 @@ async function saveHomepageSection() {
                 mobile: $('#homepageSectionDisplayMobile').is(':checked')
             }
         };
+        
+        // Remove undefined values to avoid sending them
+        Object.keys(payload).forEach(key => {
+            if (payload[key] === undefined) {
+                delete payload[key];
+            }
+        });
+        
+        console.log('Saving homepage section with payload:', payload);
         
         await $.ajax({
             url,
@@ -3972,7 +4393,68 @@ async function saveHomepageSection() {
         loadHomepageSections();
     } catch (error) {
         console.error('Error saving homepage section', error);
-        const message = error?.responseJSON?.message || 'Error saving homepage section';
+        console.error('Error details:', {
+            status: error.status,
+            statusText: error.statusText,
+            responseJSON: error.responseJSON,
+            responseText: error.responseText
+        });
+        
+        // Extract detailed error message
+        let message = 'Error saving homepage section';
+        let fullErrorDetails = '';
+        
+        if (error.responseJSON) {
+            if (error.responseJSON.message) {
+                message = error.responseJSON.message;
+            } else if (error.responseJSON.error) {
+                message = error.responseJSON.error;
+            } else {
+                message = JSON.stringify(error.responseJSON);
+            }
+            
+            // Include validation errors if present
+            if (error.responseJSON.errors) {
+                const errorList = Object.entries(error.responseJSON.errors)
+                    .map(([field, msg]) => `${field}: ${msg}`)
+                    .join(', ');
+                message += ` (${errorList})`;
+            }
+            
+            // Include details if present
+            if (error.responseJSON.details) {
+                fullErrorDetails = error.responseJSON.details;
+            }
+        } else if (error.responseText) {
+            try {
+                const parsed = JSON.parse(error.responseText);
+                message = parsed.message || parsed.error || error.responseText;
+                if (parsed.errors) {
+                    const errorList = Object.entries(parsed.errors)
+                        .map(([field, msg]) => `${field}: ${msg}`)
+                        .join(', ');
+                    message += ` (${errorList})`;
+                }
+                if (parsed.details) {
+                    fullErrorDetails = parsed.details;
+                }
+            } catch (e) {
+                message = error.responseText;
+            }
+        } else if (error.message) {
+            message = error.message;
+        }
+        
+        // Log full error for debugging
+        console.error('Full error response:', {
+            status: error.status,
+            statusText: error.statusText,
+            responseJSON: error.responseJSON,
+            responseText: error.responseText,
+            message: message,
+            details: fullErrorDetails
+        });
+        
         showAlert(message, 'danger');
     }
 }
@@ -4009,6 +4491,17 @@ function buildHomepageSectionConfig(sectionType) {
             });
             config.categoryIds = categoryIds;
             config.gridColumns = parseInt($('#configGridColumns').val(), 10) || 4;
+            config.showTitle = $('#configShowTitle').is(':checked');
+            break;
+            
+        case 'departmentGrid':
+            const departmentIds = [];
+            $('input[name="departmentIds"]:checked').each(function() {
+                departmentIds.push($(this).val());
+            });
+            config.departmentIds = departmentIds;
+            config.gridColumns = parseInt($('#configGridColumns').val(), 10) || 4;
+            config.limit = parseInt($('#configLimit').val(), 10) || 8;
             config.showTitle = $('#configShowTitle').is(':checked');
             break;
             
@@ -4076,6 +4569,18 @@ function buildHomepageSectionConfig(sectionType) {
             
         case 'customHTML':
             config.html = $('#configCustomHTML').val() || '';
+            break;
+            
+        case 'collectionLinks':
+        case 'brandMarquee':
+        case 'categoryCircles':
+            // These section types may not have specific config fields yet
+            // Return empty config object - they can be configured later
+            break;
+            
+        default:
+            console.warn(`No config builder for section type: ${sectionType}`);
+            // Return empty config for unknown types
             break;
     }
     
@@ -4147,6 +4652,17 @@ function populateHomepageSectionConfig(sectionType, config) {
                 });
             }
             if (config.gridColumns) $('#configGridColumns').val(config.gridColumns);
+            if (config.showTitle !== undefined) $('#configShowTitle').prop('checked', config.showTitle);
+            break;
+            
+        case 'departmentGrid':
+            if (config.departmentIds) {
+                config.departmentIds.forEach(id => {
+                    $(`#department_${id}`).prop('checked', true);
+                });
+            }
+            if (config.gridColumns) $('#configGridColumns').val(config.gridColumns);
+            if (config.limit) $('#configLimit').val(config.limit);
             if (config.showTitle !== undefined) $('#configShowTitle').prop('checked', config.showTitle);
             break;
             

@@ -323,6 +323,7 @@ async function run() {
             isActive: true,
             isPublished: true,
             config: {
+                section: 'Product Feature Collection',
                 filter: 'trending',
                 limit: 12,
                 showArrows: true
@@ -403,6 +404,7 @@ async function run() {
             isActive: true,
             isPublished: true,
             config: {
+                section: 'Top Selling Product',
                 filter: 'trending',
                 limit: 8,
                 showArrows: true
@@ -415,16 +417,16 @@ async function run() {
         if (categoryIds.length >= 1) {
             const lingerieSection = await HomepageSection.create({
                 name: 'Lingerie Collection',
-                type: 'categoryFeatured',
+                type: 'productCarousel',
                 title: 'Lingerie Collection',
                 subtitle: '',
                 ordering: 11,
                 isActive: true,
                 isPublished: true,
                 config: {
-                    categoryIds: categoryIds.slice(0, 4),
-                    gridColumns: 4,
-                    showTitle: true
+                    section: 'Lingerie Collection',
+                    limit: 8,
+                    showArrows: true
                 }
             });
             sections.push(lingerieSection);

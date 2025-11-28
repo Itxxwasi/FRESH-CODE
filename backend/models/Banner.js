@@ -39,15 +39,18 @@ const BannerSchema = new mongoose.Schema({
     position: {
         type: String,
         enum: [
-            'top',              // Top of page (after hero slider)
-            'after-hero',       // Immediately after hero slider
-            'after-categories', // After category sections
-            'middle',           // Between product sections (default middle)
-            'after-trending',   // After trending products section
-            'after-discounted', // After discounted products section
-            'after-new-arrival',// After new arrival products section
-            'before-footer',   // Before footer section
-            'bottom'            // Bottom of page
+            'top',                      // Top of page (after hero slider)
+            'after-hero',               // Immediately after hero slider
+            'after-categories',         // After category sections
+            'middle',                   // Between product sections (default middle)
+            'after-trending',           // After trending products section
+            'after-discounted',         // After discounted products section
+            'after-new-arrival',        // After new arrival products section
+            'after-top-selling',        // After Top Selling Products section
+            'after-lingerie-collection',// After Lingerie Collection section
+            'after-product-feature-collection', // After Product Feature Collection section
+            'before-footer',            // Before footer section
+            'bottom'                    // Bottom of page
         ],
         required: true,
         default: 'middle'

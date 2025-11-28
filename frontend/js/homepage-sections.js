@@ -9,9 +9,28 @@
 const requestCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Helper function to clear cache for a specific URL pattern
+function clearCacheForUrl(urlPattern) {
+    const keysToDelete = [];
+    requestCache.forEach((value, key) => {
+        if (key.includes(urlPattern)) {
+            keysToDelete.push(key);
+        }
+    });
+    keysToDelete.forEach(key => requestCache.delete(key));
+}
+
 // Helper function to get cached response or fetch new
 async function cachedFetch(url, options = {}) {
     const cacheKey = `${url}_${JSON.stringify(options)}`;
+    
+    // If URL has cache-busting parameter (_t), skip cache
+    if (url.includes('_t=')) {
+        const response = await fetch(url, options);
+        const data = await response.json();
+        return data;
+    }
+    
     const cached = requestCache.get(cacheKey);
     
     if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
@@ -35,6 +54,7 @@ const HOMEPAGE_SECTION_RENDERERS = {
     categoryFeatured: renderCategoryFeatured,
     categoryGrid: renderCategoryGrid,
     categoryCircles: renderCategoryCircles,
+    departmentGrid: renderDepartmentGrid,
     productTabs: renderProductTabs,
     productCarousel: renderProductCarousel,
     bannerFullWidth: renderBannerFullWidth,
@@ -73,14 +93,33 @@ async function loadAndRenderHomepageSections() {
             return;
         }
         if (!Array.isArray(sections) || sections.length === 0) {
-            const msg = 'No homepage sections found';
+            const msg = 'No homepage sections found. Make sure sections are both Active AND Published in the admin panel.';
             if (typeof window.Logger !== 'undefined') {
                 window.Logger.warn(msg);
             } else {
-                console.log(msg);
+                console.warn(msg);
+            }
+            // Show user-friendly message
+            const mainContainer = document.querySelector('main');
+            if (mainContainer) {
+                const noSectionsMsg = document.createElement('div');
+                noSectionsMsg.className = 'alert alert-info text-center m-4';
+                noSectionsMsg.innerHTML = '<p><strong>No sections available</strong></p><p>Please check that sections are both <strong>Active</strong> and <strong>Published</strong> in the admin panel.</p>';
+                mainContainer.appendChild(noSectionsMsg);
             }
             return;
         }
+        
+        // Log sections being loaded for debugging
+        console.log(`Found ${sections.length} homepage sections:`, sections.map((s, i) => ({ 
+            index: i, 
+            name: s.name, 
+            type: s.type, 
+            ordering: s.ordering, 
+            isActive: s.isActive, 
+            isPublished: s.isPublished,
+            hasItems: s.type === 'scrollingText' ? (s.config?.items?.length > 0) : 'N/A'
+        })));
         
         // Sort by ordering
         sections.sort((a, b) => (a.ordering || 0) - (b.ordering || 0));
@@ -123,42 +162,39 @@ async function loadAndRenderHomepageSections() {
             oldSectionsFallback.style.display = 'none';
         }
         
-        // Separate sections by priority (above fold vs below fold)
-        const aboveFoldSections = [];
-        const belowFoldSections = [];
+        // Render sections in their exact order to maintain proper sequence
+        // First scrolling text goes at top before header, others render in normal order
+        let renderedCount = 0;
         
-        sections.forEach((section, i) => {
-            // First 3 sections are above fold (hero, first product section, etc.)
-            if (i < 3 || section.type === 'heroSlider' || section.type === 'scrollingText') {
-                aboveFoldSections.push({ section, index: i });
+        // Render sections sequentially to maintain proper order (especially for announcement bars after slider)
+        for (let i = 0; i < sections.length; i++) {
+            const section = sections[i];
+            console.log(`Rendering section ${i}: "${section.name}" (type: ${section.type}, ordering: ${section.ordering})`);
+            const result = await renderSection(section, i, sections, homepageSectionsContainer);
+            if (result && !result.skip && result.rendered !== false) {
+                renderedCount++;
+                console.log(`✓ Section ${i} "${section.name}" rendered successfully`);
+            } else if (result && result.skip) {
+                console.log(`⊘ Section ${i} "${section.name}" skipped (rendered elsewhere)`);
             } else {
-                belowFoldSections.push({ section, index: i });
+                console.warn(`⚠ Section ${i} "${section.name}" did not render (result:`, result, `)`);
             }
-        });
-        
-        // Render above-fold sections first (sequential for critical content)
-        for (const { section, index } of aboveFoldSections) {
-            await renderSection(section, index, sections, homepageSectionsContainer);
         }
         
-        // Render below-fold sections in parallel batches for faster loading
-        const batchSize = 3; // Load 3 sections at a time
-        for (let i = 0; i < belowFoldSections.length; i += batchSize) {
-            const batch = belowFoldSections.slice(i, i + batchSize);
-            // Render batch in parallel
-            const batchPromises = batch.map(({ section, index }) => 
-                renderSection(section, index, sections, homepageSectionsContainer)
-            );
-            await Promise.all(batchPromises);
+        // Log summary
+        const loadDuration = performance.now() - startTime;
+        const summaryMsg = `Homepage sections loaded: ${renderedCount}/${sections.length} sections rendered in ${loadDuration.toFixed(2)}ms`;
+        console.log(summaryMsg);
+        if (typeof window.Logger !== 'undefined') {
+            window.Logger.info(summaryMsg, { 
+                rendered: renderedCount, 
+                total: sections.length, 
+                duration: loadDuration 
+            });
         }
         
         // Initialize carousels and interactive elements after rendering
         initializeHomepageInteractions();
-        
-        const loadDuration = performance.now() - startTime;
-        if (typeof window.Logger !== 'undefined') {
-            window.Logger.info(`Homepage sections loaded in ${loadDuration.toFixed(2)}ms`, { duration: loadDuration, sectionCount: sections.length });
-        }
         
     } catch (error) {
         const errorMsg = 'Error loading homepage sections';
@@ -218,27 +254,62 @@ async function renderSection(section, index, allSections, container) {
         }
     }
     
-    // Special handling for scrolling text - render at top before header
+    // Special handling for scrolling text - only the FIRST one (lowest ordering) goes at top before header
+    // Other scrolling text sections should render in their normal position in the container
     if (section.type === 'scrollingText') {
+        console.log(`[renderSection] Processing scrolling text section "${section.name}" at index ${index}`);
         const renderer = HOMEPAGE_SECTION_RENDERERS[section.type];
         if (renderer) {
             try {
+                // Check if this is the first scrolling text section (lowest ordering)
+                const firstScrollingTextIndex = allSections.findIndex(s => s.type === 'scrollingText');
+                const isFirstScrollingText = index === firstScrollingTextIndex;
+                console.log(`[renderSection] First scrolling text index: ${firstScrollingTextIndex}, current index: ${index}, isFirst: ${isFirstScrollingText}`);
+                
                 const sectionElement = await renderer(section, index);
-                if (sectionElement) {
+                
+                if (!sectionElement) {
+                    console.error(`❌ Scrolling text section "${section.name}" (index ${index}) returned null - check if items are configured in admin panel!`);
+                    console.error(`   Section data:`, { name: section.name, config: section.config, _id: section._id });
+                    // Don't skip - let it fall through, but log the issue
+                    return null;
+                }
+                
+                console.log(`[renderSection] Section element created for "${section.name}":`, sectionElement);
+                
+                if (isFirstScrollingText) {
+                    // Insert first scrolling text before header
                     const header = document.getElementById('header');
                     if (header && header.parentNode) {
                         header.parentNode.insertBefore(sectionElement, header);
-                        if (typeof window.Logger !== 'undefined') {
-                            window.Logger.debug('Scrolling text inserted before header');
-                        }
+                        console.log(`✓ First scrolling text "${section.name}" inserted before header`);
                         return { skip: true };
+                    }
+                } else {
+                    // Render subsequent scrolling text sections in their normal position in the container
+                    if (sectionElement instanceof Node) {
+                        container.appendChild(sectionElement);
+                        console.log(`✓ Scrolling text section "${section.name}" (index ${index}) rendered in container after slider`);
+                        return { rendered: true };
+                    } else if (typeof sectionElement === 'string') {
+                        const wrapper = document.createElement('div');
+                        wrapper.innerHTML = sectionElement;
+                        const firstChild = wrapper.firstElementChild;
+                        if (firstChild) {
+                            container.appendChild(firstChild);
+                            console.log(`✓ Scrolling text section "${section.name}" (index ${index}) rendered in container after slider`);
+                            return { rendered: true };
+                        }
                     }
                 }
             } catch (error) {
-                console.error('Error rendering scrolling text:', error);
+                console.error(`Error rendering scrolling text section "${section.name}":`, error);
             }
+        } else {
+            console.error(`No renderer found for scrolling text section "${section.name}"`);
         }
-        return { skip: true };
+        // If we get here, something went wrong - don't skip, let normal rendering try
+        return null;
     }
     
     const renderer = HOMEPAGE_SECTION_RENDERERS[section.type];
@@ -267,7 +338,9 @@ async function renderSection(section, index, allSections, container) {
                         duration: sectionDuration
                     });
                 }
+                return { rendered: true };
             }
+            return { rendered: false, reason: 'No element returned' };
         } catch (error) {
             const errorMsg = `Error rendering section ${section.name} (${section.type})`;
             if (typeof window.Logger !== 'undefined') {
@@ -278,7 +351,13 @@ async function renderSection(section, index, allSections, container) {
                 });
             } else {
                 console.error(errorMsg, error);
+                console.error('Section data:', section);
             }
+            // Show error in UI for debugging
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger m-3';
+            errorDiv.innerHTML = `<strong>Error rendering section:</strong> ${section.name} (${section.type})<br><small>${error.message || error.toString()}</small>`;
+            container.appendChild(errorDiv);
         }
     } else {
         const warnMsg = `No renderer found for section type: ${section.type}`;
@@ -288,8 +367,13 @@ async function renderSection(section, index, allSections, container) {
                 sectionType: section.type
             });
         } else {
-            console.warn(warnMsg);
+            console.warn(warnMsg, { section });
         }
+        // Show warning in UI
+        const warnDiv = document.createElement('div');
+        warnDiv.className = 'alert alert-warning m-3';
+        warnDiv.innerHTML = `<strong>No renderer:</strong> ${section.name} (${section.type})`;
+        container.appendChild(warnDiv);
     }
     
     return { skip: false };
@@ -479,28 +563,51 @@ async function renderHeroSlider(section, index) {
 
 // Render Scrolling Text
 function renderScrollingText(section, index) {
-    const items = section.config?.items || [];
-    if (items.length === 0) return null;
+    console.log(`[renderScrollingText] Rendering section "${section.name}" (index ${index})`);
+    console.log(`[renderScrollingText] Section config:`, section.config);
     
-    const scrollSpeed = section.config?.scrollSpeed || 12;
-    // Force white background for top slides
-    const bgColor = '#ffffff';
-    // Red font color for slides
+    const items = section.config?.items || [];
+    console.log(`[renderScrollingText] Items found:`, items.length, items);
+    
+    if (items.length === 0) {
+        console.error(`❌ Scrolling text section "${section.name}" has no items configured! Config:`, section.config);
+        return null;
+    }
+    
+    const scrollSpeed = section.config?.scrollSpeed || 20;
+    // Use background color from config, default to white for first announcement bar at top
+    const bgColor = section.config?.backgroundColor || '#ffffff';
+    // Use text color from config, default to red
     const textColor = section.config?.textColor || '#d93939';
+    
+    console.log(`[renderScrollingText] Creating HTML for "${section.name}" with ${items.length} items`);
+    
+    // Create the content items with heart icons
+    const contentItems = items.map((item, idx) => `
+        <span class="scrolling-text__item">${htmlEscape(item)}</span>
+        <i class="la la-heart scrolling-text__icon" aria-hidden="true"></i>
+    `).join('');
+    
+    // Duplicate content multiple times for seamless infinite scroll (more copies = smoother)
+    const duplicatedContent = contentItems + contentItems + contentItems + contentItems;
+    
+    // For "Announcement Bar-2", force red background
+    const isAnnouncementBar2 = (section.name || '').toLowerCase().includes('announcement bar-2') || 
+                               (section.name || '').toLowerCase().includes('announcement bar 2');
+    const finalBgColor = isAnnouncementBar2 ? '#c42525' : bgColor;
     
     const sectionHtml = `
         <section class="scrolling-text homepage-section" 
                  data-section-type="scrollingText" 
                  data-section-id="${section._id}"
-                 style="background-color: ${bgColor}; color: ${textColor}; height: 50px; padding: 12px 0;">
+                 data-section-name="${htmlEscape(section.name || '')}"
+                 style="background-color: ${finalBgColor}; color: ${textColor}; height: 50px; padding: 12px 0; overflow: hidden;"
+                 data-bg-color="${finalBgColor}"
+                 data-text-color="${textColor}">
             <div class="scrolling-text__wrapper">
                 <div class="scrolling-text__inner" style="--scroll-speed: ${scrollSpeed}s;">
                     <div class="scrolling-text__content">
-                        ${items.map((item, idx) => `
-                            <span class="scrolling-text__item">${htmlEscape(item)}</span>
-                            ${idx < items.length - 1 ? '<i class="la la-heart scrolling-text__icon" aria-hidden="true"></i>' : ''}
-                        `).join('')}
-                        <div class="scrolling-text__spacer"></div>
+                        ${duplicatedContent}
                     </div>
                 </div>
             </div>
@@ -509,7 +616,15 @@ function renderScrollingText(section, index) {
     
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = sectionHtml;
-    return tempDiv.firstElementChild;
+    const element = tempDiv.firstElementChild;
+    
+    if (element) {
+        console.log(`✓ [renderScrollingText] Successfully created element for "${section.name}"`);
+    } else {
+        console.error(`❌ [renderScrollingText] Failed to create element for "${section.name}"`);
+    }
+    
+    return element;
 }
 
 // Render Category Featured Grid
@@ -689,6 +804,74 @@ async function renderCategoryCircles(section, index) {
         return tempDiv.firstElementChild;
     } catch (error) {
         console.error('Error rendering category circles:', error);
+        return null;
+    }
+}
+
+// Render Department Grid
+async function renderDepartmentGrid(section, index) {
+    const departmentIds = section.config?.departmentIds || [];
+    const gridColumns = section.config?.gridColumns || 4;
+    const showTitles = section.config?.showTitles !== false; // Default to true
+    
+    try {
+        const departmentsResponse = await fetch('/api/departments');
+        const allDepartments = await departmentsResponse.json();
+        const departments = departmentIds.length > 0
+            ? allDepartments.filter(dept => departmentIds.includes(dept._id) && dept.isActive)
+            : allDepartments.filter(dept => dept.isActive).slice(0, 12);
+        
+        if (departments.length === 0) return null;
+        
+        // Calculate Bootstrap grid classes based on columns
+        const colClass = gridColumns === 2 ? 'col-md-6' : 
+                        gridColumns === 3 ? 'col-md-4' : 
+                        gridColumns === 4 ? 'col-md-3' : 
+                        gridColumns === 6 ? 'col-md-2' : 'col-md-3';
+        
+        const sectionHtml = `
+            <section class="department-grid homepage-section" data-section-type="departmentGrid" data-section-id="${section._id}">
+                <div class="container py-5">
+                    ${section.title ? `
+                        <div class="section-header text-center mb-4">
+                            <h2>${htmlEscape(section.title)}</h2>
+                            ${section.subtitle ? `<p class="text-muted">${htmlEscape(section.subtitle)}</p>` : ''}
+                        </div>
+                    ` : ''}
+                    <div class="row g-4">
+                        ${departments.map(dept => {
+                            const imageUrl = dept.imageUpload?.url || dept.image || getGlobalFallbackImage();
+                            return `
+                                <div class="${colClass} col-sm-6">
+                                    <a href="/department/${dept._id}" class="department-grid-item text-decoration-none">
+                                        <div class="card h-100 shadow-sm department-card">
+                                            <div class="department-media">
+                                                <img src="${htmlEscape(imageUrl)}" 
+                                                     alt="${htmlEscape(dept.name)}" 
+                                                     class="card-img-top"
+                                                     loading="lazy">
+                                            </div>
+                                            ${showTitles ? `
+                                                <div class="card-body text-center">
+                                                    <h5 class="card-title mb-0">${htmlEscape(dept.name)}</h5>
+                                                    ${dept.description ? `<p class="card-text text-muted small mt-2">${htmlEscape(dept.description.substring(0, 80))}${dept.description.length > 80 ? '...' : ''}</p>` : ''}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </a>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </section>
+        `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sectionHtml;
+        return tempDiv.firstElementChild;
+    } catch (error) {
+        console.error('Error rendering department grid:', error);
         return null;
     }
 }
@@ -894,7 +1077,7 @@ async function renderProductCarousel(section, index) {
             if (rawName.includes('lingerie')) {
                 sectionFilter = 'Lingerie Collection';
             } else if (rawName.includes('top selling')) {
-                sectionFilter = 'Top Selling';
+                sectionFilter = 'Top Selling Product';
             } else if (rawName.includes('new arrivals')) {
                 sectionFilter = 'New Arrivals';
             } else if (rawName.includes('best sellers')) {
@@ -1092,36 +1275,46 @@ async function renderBannerFullWidth(section, index) {
     }
     
     try {
-        const bannerResponse = await fetch(`/api/banners/detail/${bannerId}`);
+        // Use cache-busting to ensure we get fresh data after banner deletions
+        const bannerResponse = await fetch(`/api/banners/detail/${bannerId}?_t=${Date.now()}`);
         
         if (!bannerResponse.ok) {
-            if (bannerResponse.status === 401) {
+            // Handle 404 (banner not found) or 401 (unauthorized) gracefully - try fallback
+            if (bannerResponse.status === 404 || bannerResponse.status === 401) {
                 if (typeof window.Logger !== 'undefined') {
-                    window.Logger.error('Banner fetch unauthorized (401)', new Error('Unauthorized'), { bannerId, sectionId: section._id });
+                    window.Logger.warn(`Banner not found or unauthorized (${bannerResponse.status}), trying fallback`, { bannerId, sectionId: section._id });
                 } else {
-                    console.error('Banner fetch unauthorized (401):', bannerId);
+                    console.warn(`Banner ${bannerId} not found (${bannerResponse.status}), trying fallback...`);
                 }
-                // Try fallback - use banner image from all banners endpoint
-                const allBannersResponse = await fetch('/api/banners');
-                if (allBannersResponse.ok) {
-                    const allBanners = await allBannersResponse.json();
-                    const banner = allBanners.find(b => b._id === bannerId);
-                    if (banner && banner.isActive) {
-                        return renderBannerHTML(banner, section);
+                // Try fallback - use banner image from all banners endpoint (with cache-busting)
+                try {
+                    const allBannersResponse = await fetch(`/api/banners?_t=${Date.now()}`);
+                    if (allBannersResponse.ok) {
+                        const allBanners = await allBannersResponse.json();
+                        const banner = allBanners.find(b => b._id === bannerId);
+                        if (banner && banner.isActive) {
+                            // Found banner in fallback, use it
+                            return renderBannerHTML(banner, section);
+                        }
+                    }
+                } catch (fallbackError) {
+                    if (typeof window.Logger !== 'undefined') {
+                        window.Logger.warn('Fallback banner fetch failed', fallbackError, { bannerId });
+                    } else {
+                        console.warn('Fallback banner fetch failed:', fallbackError);
                     }
                 }
-            } else if (bannerResponse.status === 404) {
-                if (typeof window.Logger !== 'undefined') {
-                    window.Logger.warn('Banner not found (404)', { bannerId, sectionId: section._id });
-                }
+                // Banner not found even in fallback, return null silently
+                return null;
             } else {
+                // Other errors (500, etc.)
                 if (typeof window.Logger !== 'undefined') {
                     window.Logger.error('Banner fetch failed', new Error(`HTTP ${bannerResponse.status}`), { bannerId, sectionId: section._id, status: bannerResponse.status });
                 } else {
                     console.error('Banner fetch failed:', bannerResponse.status, bannerId);
                 }
+                return null;
             }
-            return null;
         }
         
         const banner = await bannerResponse.json();
@@ -1215,7 +1408,7 @@ function renderBannerHTML(banner, section) {
     }
     
     const sectionHtml = `
-        <section class="banner-full-width homepage-section" data-section-type="bannerFullWidth" data-section-id="${section._id}">
+        <section class="banner-full-width homepage-section" data-section-type="bannerFullWidth" data-section-id="${section._id}" data-banner-id="${banner._id}">
             ${hasTitle ? `
                 <div class="container">
                     <div class="banner-full-width__header">
@@ -1271,10 +1464,11 @@ function extractVimeoId(url) {
 // Helper: Get section banner (for banners before sections)
 async function getSectionBanner(bannerId) {
     try {
-        const response = await fetch(`/api/banners/detail/${bannerId}`);
+        // Use cache-busting to ensure fresh data
+        const response = await fetch(`/api/banners/detail/${bannerId}?_t=${Date.now()}`);
         if (!response.ok) {
-            // Try fallback - fetch from all banners
-            const allBannersResponse = await fetch('/api/banners');
+            // Try fallback - fetch from all banners (with cache-busting)
+            const allBannersResponse = await fetch(`/api/banners?_t=${Date.now()}`);
             if (allBannersResponse.ok) {
                 const allBanners = await allBannersResponse.json();
                 return allBanners.find(b => b._id === bannerId && b.isActive) || null;
@@ -2011,8 +2205,8 @@ function getGlobalFallbackImage() {
 // Load and render banners by position
 async function loadAndRenderBanners() {
     try {
-        // Use cached fetch for banners
-        const banners = await cachedFetch('/api/banners');
+        // Use cache-busting timestamp to ensure fresh data after banner deletions
+        const banners = await cachedFetch(`/api/banners?_t=${Date.now()}`);
         if (!Array.isArray(banners) || banners.length === 0) {
             return;
         }
@@ -2024,17 +2218,31 @@ async function loadAndRenderBanners() {
             return;
         }
         
-        // Group banners by position
+        // Get all banners that are already rendered through homepage sections
+        // This prevents duplicate rendering of the same banner
+        const renderedBannerIds = new Set();
+        const existingBannerSections = homepageSectionsContainer.querySelectorAll('[data-banner-id]');
+        existingBannerSections.forEach(section => {
+            const bannerId = section.getAttribute('data-banner-id');
+            if (bannerId) {
+                renderedBannerIds.add(bannerId);
+            }
+        });
+        
+        // Group banners by position, excluding already rendered banners
         const bannersByPosition = {
-            'top': banners.filter(b => b.position === 'top' && b.isActive),
-            'after-hero': banners.filter(b => b.position === 'after-hero' && b.isActive),
-            'after-categories': banners.filter(b => b.position === 'after-categories' && b.isActive),
-            'middle': banners.filter(b => b.position === 'middle' && b.isActive),
-            'after-trending': banners.filter(b => b.position === 'after-trending' && b.isActive),
-            'after-discounted': banners.filter(b => b.position === 'after-discounted' && b.isActive),
-            'after-new-arrival': banners.filter(b => b.position === 'after-new-arrival' && b.isActive),
-            'before-footer': banners.filter(b => b.position === 'before-footer' && b.isActive),
-            'bottom': banners.filter(b => b.position === 'bottom' && b.isActive)
+            'top': banners.filter(b => b.position === 'top' && b.isActive && !renderedBannerIds.has(b._id)),
+            'after-hero': banners.filter(b => b.position === 'after-hero' && b.isActive && !renderedBannerIds.has(b._id)),
+            'after-categories': banners.filter(b => b.position === 'after-categories' && b.isActive && !renderedBannerIds.has(b._id)),
+            'middle': banners.filter(b => b.position === 'middle' && b.isActive && !renderedBannerIds.has(b._id)),
+            'after-trending': banners.filter(b => b.position === 'after-trending' && b.isActive && !renderedBannerIds.has(b._id)),
+            'after-discounted': banners.filter(b => b.position === 'after-discounted' && b.isActive && !renderedBannerIds.has(b._id)),
+            'after-new-arrival': banners.filter(b => b.position === 'after-new-arrival' && b.isActive && !renderedBannerIds.has(b._id)),
+            'after-top-selling': banners.filter(b => b.position === 'after-top-selling' && b.isActive && !renderedBannerIds.has(b._id)),
+            'after-lingerie-collection': banners.filter(b => b.position === 'after-lingerie-collection' && b.isActive && !renderedBannerIds.has(b._id)),
+            'after-product-feature-collection': banners.filter(b => b.position === 'after-product-feature-collection' && b.isActive && !renderedBannerIds.has(b._id)),
+            'before-footer': banners.filter(b => b.position === 'before-footer' && b.isActive && !renderedBannerIds.has(b._id)),
+            'bottom': banners.filter(b => b.position === 'bottom' && b.isActive && !renderedBannerIds.has(b._id))
         };
         
         // Helper function to get current sections
@@ -2067,6 +2275,18 @@ async function loadAndRenderBanners() {
             return false;
         };
         
+        // Helper function to find section by name (for specific collection sections)
+        const findSectionByName = (sectionName) => {
+            const sections = getSections();
+            for (let i = 0; i < sections.length; i++) {
+                const nameAttr = sections[i].getAttribute('data-section-name');
+                if (nameAttr && nameAttr.toLowerCase().includes(sectionName.toLowerCase())) {
+                    return i;
+                }
+            }
+            return -1;
+        };
+        
         // Render banners by position in order
         const positionOrder = [
             'top',
@@ -2076,6 +2296,9 @@ async function loadAndRenderBanners() {
             'after-trending',
             'after-discounted',
             'after-new-arrival',
+            'after-top-selling',
+            'after-lingerie-collection',
+            'after-product-feature-collection',
             'before-footer',
             'bottom'
         ];
@@ -2150,6 +2373,63 @@ async function loadAndRenderBanners() {
                         const newArrivalIndex = findSectionByType(['productCarousel', 'productTabs']);
                         if (!insertBannerAfterSection(bannerElement, newArrivalIndex)) {
                             homepageSectionsContainer.appendChild(bannerElement);
+                        }
+                        break;
+                        
+                    case 'after-top-selling':
+                        // After Top Selling Products section
+                        // Search for "Top Selling Product" (exact name in database)
+                        const topSellingIndex = findSectionByName('Top Selling Product');
+                        if (topSellingIndex === -1) {
+                            // Also try "top selling" as fallback
+                            const topSellingIndex2 = findSectionByName('top selling');
+                            if (!insertBannerAfterSection(bannerElement, topSellingIndex2)) {
+                                // Fallback to after any product carousel
+                                const fallbackIndex = findSectionByType(['productCarousel', 'productTabs']);
+                                if (!insertBannerAfterSection(bannerElement, fallbackIndex)) {
+                                    homepageSectionsContainer.appendChild(bannerElement);
+                                }
+                            }
+                        } else {
+                            insertBannerAfterSection(bannerElement, topSellingIndex);
+                        }
+                        break;
+                        
+                    case 'after-lingerie-collection':
+                        // After Lingerie Collection section
+                        // Search for "Lingerie Collection" (exact name in database)
+                        const lingerieIndex = findSectionByName('Lingerie Collection');
+                        if (lingerieIndex === -1) {
+                            // Also try "lingerie" as fallback
+                            const lingerieIndex2 = findSectionByName('lingerie');
+                            if (!insertBannerAfterSection(bannerElement, lingerieIndex2)) {
+                                // Fallback to after any product carousel
+                                const fallbackIndex = findSectionByType(['productCarousel', 'productTabs']);
+                                if (!insertBannerAfterSection(bannerElement, fallbackIndex)) {
+                                    homepageSectionsContainer.appendChild(bannerElement);
+                                }
+                            }
+                        } else {
+                            insertBannerAfterSection(bannerElement, lingerieIndex);
+                        }
+                        break;
+                        
+                    case 'after-product-feature-collection':
+                        // After Product Feature Collection section
+                        // Search for "Product Feature Collection" (exact name in database)
+                        const productFeatureIndex = findSectionByName('Product Feature Collection');
+                        if (productFeatureIndex === -1) {
+                            // Also try "product feature" as fallback
+                            const productFeatureIndex2 = findSectionByName('product feature');
+                            if (!insertBannerAfterSection(bannerElement, productFeatureIndex2)) {
+                                // Fallback to after any product carousel
+                                const fallbackIndex = findSectionByType(['productCarousel', 'productTabs']);
+                                if (!insertBannerAfterSection(bannerElement, fallbackIndex)) {
+                                    homepageSectionsContainer.appendChild(bannerElement);
+                                }
+                            }
+                        } else {
+                            insertBannerAfterSection(bannerElement, productFeatureIndex);
                         }
                         break;
                         

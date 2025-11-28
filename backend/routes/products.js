@@ -248,10 +248,10 @@ router.post('/', adminAuth, async (req, res) => {
             const defaultSections = [];
             
             // Map boolean flags to sections
-            if (product.isTopSelling) defaultSections.push('Top Selling');
+            if (product.isTopSelling) defaultSections.push('Top Selling Product');
             if (product.isBestSelling) defaultSections.push('Best Sellers');
             if (product.isNewArrival) defaultSections.push('New Arrivals');
-            if (product.isTrending) defaultSections.push('Top Selling');
+            if (product.isTrending) defaultSections.push('Top Selling Product');
             if (product.discount > 0) {
                 if (product.discount >= 10) {
                     defaultSections.push('10.10 Mega Sale');
@@ -389,10 +389,10 @@ router.put('/:id', adminAuth, async (req, res) => {
             const defaultSections = [];
             
             // Map boolean flags to sections
-            if (product.isTopSelling) defaultSections.push('Top Selling');
+            if (product.isTopSelling) defaultSections.push('Top Selling Product');
             if (product.isBestSelling) defaultSections.push('Best Sellers');
             if (product.isNewArrival) defaultSections.push('New Arrivals');
-            if (product.isTrending) defaultSections.push('Top Selling');
+            if (product.isTrending) defaultSections.push('Top Selling Product');
             if (product.discount > 0) {
                 if (product.discount >= 10) {
                     defaultSections.push('10.10 Mega Sale');

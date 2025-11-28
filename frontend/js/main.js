@@ -91,6 +91,7 @@ const SECTION_RENDERERS = {
             scheduleInit(() => {
                 Promise.all([
                     loadDepartments().catch(err => console.warn('Departments loading failed:', err)),
+                    loadCategoriesForNavbar().catch(err => console.warn('Categories loading failed:', err)),
                     loadStaticBrands().catch(err => console.warn('Brands loading failed:', err)),
                     loadCartCount().catch(err => console.warn('Cart count loading failed:', err)),
                     loadFallbackHomepageProducts().catch(err => console.warn('Homepage products loading failed:', err)),
@@ -161,6 +162,18 @@ if (document.readyState === 'loading') {
 // Mobile menu handlers (responsive navbar)
 function initialiseMobileMenu() {
     try {
+        // Check if jQuery is available
+        if (typeof $ === 'undefined' || typeof jQuery === 'undefined') {
+            console.warn('jQuery is not loaded. Mobile menu initialization will be skipped.');
+            // Retry after a short delay if jQuery might still be loading
+            setTimeout(() => {
+                if (typeof $ !== 'undefined') {
+                    initialiseMobileMenu();
+                }
+            }, 100);
+            return;
+        }
+        
         const toggle = document.querySelector('.js-mobile-menu');
         const panel = document.getElementById('mobileMenuPanel');
         const closeBtn = panel ? panel.querySelector('.mobile-menu-close') : null;
@@ -249,7 +262,8 @@ async function initialiseCategoryNavLinks() {
         const links = document.querySelectorAll('.nav-category-link');
         if (!links.length) return;
 
-        const categories = await fetchJSON('/api/categories');
+        // Use cache-busting to ensure fresh data
+        const categories = await fetchJSON(`/api/categories?_t=${Date.now()}`);
         if (!Array.isArray(categories) || !categories.length) return;
 
         const slugify = (name) =>
@@ -374,8 +388,8 @@ async function loadSections() {
 
 async function loadBanners() {
     try {
-        // Get all active banners
-        const banners = await fetchJSON('/api/banners');
+        // Get all active banners (with cache-busting to ensure fresh data)
+        const banners = await fetchJSON(`/api/banners?_t=${Date.now()}`);
         if (!Array.isArray(banners) || banners.length === 0) {
             return;
         }
@@ -913,7 +927,8 @@ async function loadStaticBrands() {
 
 async function loadDepartments() {
     try {
-        const departments = await fetchJSON('/api/departments');
+        // Use cache-busting to ensure fresh data
+        const departments = await fetchJSON(`/api/departments?_t=${Date.now()}`);
         if (!Array.isArray(departments) || departments.length === 0) {
             if (typeof window.Logger !== 'undefined') {
                 window.Logger.warn('No departments found');
@@ -985,66 +1000,333 @@ async function loadDepartments() {
     }
 }
 
-// Load categories for navbar dropdowns
+// Load all categories and display them in the navbar
+let categoriesLoading = false; // Prevent duplicate calls
 async function loadCategoriesForNavbar() {
+    // Prevent multiple simultaneous calls
+    if (categoriesLoading) {
+        console.log('Categories already loading, skipping...');
+        return;
+    }
+    
     try {
-        const categories = await fetchJSON('/api/categories');
+        categoriesLoading = true;
+        
+        // Use cache-busting to ensure fresh data
+        const categories = await fetchJSON(`/api/categories?_t=${Date.now()}`);
         if (!Array.isArray(categories) || categories.length === 0) {
+            categoriesLoading = false;
             return;
         }
         
-        // Group categories by department or by name similarity
-        const makeupMenu = document.getElementById('makeupMenu');
-        const skincareMenu = document.getElementById('skincareMenu');
-        const haircareMenu = document.getElementById('haircareMenu');
-        
-        if (makeupMenu) {
-            const makeupCategories = categories.filter(cat => 
-                cat.name.toLowerCase().includes('makeup') || 
-                cat.name.toLowerCase().includes('cosmetic') ||
-                cat.name.toLowerCase().includes('lipstick') ||
-                cat.name.toLowerCase().includes('foundation') ||
-                cat.name.toLowerCase().includes('eyeshadow')
-            );
-            if (makeupCategories.length > 0) {
-                makeupMenu.innerHTML = makeupCategories.slice(0, 10).map(cat => {
-                    const catId = cat._id || cat.id;
-                    return `<li><a class="dropdown-item" href="/category/${catId}">${htmlEscape(cat.name)}</a></li>`;
-                }).join('');
-            }
+        // Get the main menu container
+        const mainMenu = document.getElementById('menu-main-menu');
+        if (!mainMenu) {
+            categoriesLoading = false;
+            return;
         }
         
-        if (skincareMenu) {
-            const skincareCategories = categories.filter(cat => 
-                cat.name.toLowerCase().includes('skin') || 
-                cat.name.toLowerCase().includes('face') ||
-                cat.name.toLowerCase().includes('cream') ||
-                cat.name.toLowerCase().includes('serum') ||
-                cat.name.toLowerCase().includes('moisturizer')
-            );
-            if (skincareCategories.length > 0) {
-                skincareMenu.innerHTML = skincareCategories.slice(0, 10).map(cat => {
-                    const catId = cat._id || cat.id;
-                    return `<li><a class="dropdown-item" href="/category/${catId}">${htmlEscape(cat.name)}</a></li>`;
-                }).join('');
-            }
+        // Filter only active categories, exclude "11.11 Sale" to avoid duplicate with static link
+        const activeCategories = categories
+            .filter(cat => {
+                // Must have an ID
+                if (!cat._id && !cat.id) {
+                    console.warn('Category without ID filtered out:', cat);
+                    return false;
+                }
+                // Must be active
+                if (cat.isActive === false) return false;
+                // Exclude categories that match the static "11.11 Sale" link
+                const catName = (cat.name || '').toLowerCase().trim();
+                const isSaleCategory = catName.includes('11.11 sale') || catName.includes('11.11sale') || catName === 'sale';
+                if (isSaleCategory) {
+                    console.log('Filtered out sale category to avoid duplicate:', catName);
+                }
+                return !isSaleCategory;
+            })
+            .sort((a, b) => {
+                const nameA = (a.name || '').toLowerCase();
+                const nameB = (b.name || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+        
+        console.log(`Loaded ${activeCategories.length} categories from database (excluding Sale):`, 
+            activeCategories.map(c => c.name));
+        
+        // Clear existing category menu items (keep only static items: Sale, Shop, Blog)
+        // Find and preserve static items before clearing
+        const staticItems = [];
+        
+        // Find Sale link (first item or by href)
+        const saleItem = mainMenu.querySelector('a[href="/products.html?filter=discounted"]')?.closest('.menu-item') || 
+                        mainMenu.querySelector('.menu-item:first-child');
+        
+        // Find Shop dropdown
+        const shopItem = mainMenu.querySelector('#departmentsDropdown')?.closest('.menu-item');
+        
+        // Find Blog link
+        const blogItem = mainMenu.querySelector('a[href="/blog.html"]')?.closest('.menu-item');
+        
+        // Store static items (only if they exist and are not dynamically added categories)
+        if (saleItem && saleItem.querySelector('a[href="/products.html?filter=discounted"]')) {
+            staticItems.push(saleItem);
+        }
+        if (shopItem) {
+            staticItems.push(shopItem);
+        }
+        if (blogItem) {
+            staticItems.push(blogItem);
         }
         
-        if (haircareMenu) {
-            const haircareCategories = categories.filter(cat => 
-                cat.name.toLowerCase().includes('hair') || 
-                cat.name.toLowerCase().includes('shampoo') ||
-                cat.name.toLowerCase().includes('conditioner') ||
-                cat.name.toLowerCase().includes('oil')
-            );
-            if (haircareCategories.length > 0) {
-                haircareMenu.innerHTML = haircareCategories.slice(0, 10).map(cat => {
-                    const catId = cat._id || cat.id;
-                    return `<li><a class="dropdown-item" href="/category/${catId}">${htmlEscape(cat.name)}</a></li>`;
-                }).join('');
+        // Clear ALL menu items (including any old/dynamic categories)
+        mainMenu.innerHTML = '';
+        
+        // Restore only static items
+        staticItems.forEach(item => {
+            // Clone the item to avoid any references to removed elements
+            const clonedItem = item.cloneNode(true);
+            mainMenu.appendChild(clonedItem);
+        });
+        
+        // Load subcategories for all categories
+        const subcategoriesMap = new Map();
+        let saleCategoryId = null;
+        let saleCategorySubcategories = [];
+        
+        try {
+            // Use cache-busting to ensure fresh subcategories data
+            const subcategories = await fetchJSON(`/api/subcategories?_t=${Date.now()}`);
+            console.log('Loaded subcategories:', subcategories.length, subcategories);
+            if (Array.isArray(subcategories)) {
+                subcategories.forEach(subcat => {
+                    // Handle both populated object and ObjectId string
+                    let catId = null;
+                    if (subcat.category) {
+                        if (typeof subcat.category === 'object' && subcat.category._id) {
+                            catId = subcat.category._id.toString();
+                        } else if (typeof subcat.category === 'string') {
+                            catId = subcat.category;
+                        } else if (subcat.category._id) {
+                            catId = subcat.category._id.toString();
+                        }
+                    }
+                    
+                    if (catId) {
+                        // Convert to string for consistent comparison
+                        const catIdStr = catId.toString();
+                        if (!subcategoriesMap.has(catIdStr)) {
+                            subcategoriesMap.set(catIdStr, []);
+                        }
+                        subcategoriesMap.get(catIdStr).push(subcat);
+                        console.log(`Mapped subcategory "${subcat.name}" to category ID: ${catIdStr}`);
+                    } else {
+                        console.warn('Subcategory missing category ID:', subcat);
+                    }
+                });
             }
+            
+            console.log('Subcategories map:', Array.from(subcategoriesMap.entries()).map(([id, subs]) => 
+                `Category ${id}: ${subs.map(s => s.name).join(', ')}`
+            ));
+            
+            // Find the "11.11 Sale" category to check for subcategories
+            const saleCategory = categories.find(cat => {
+                const catName = (cat.name || '').toLowerCase().trim();
+                return catName.includes('11.11 sale') || catName.includes('11.11sale') || catName === 'sale';
+            });
+            
+            if (saleCategory) {
+                saleCategoryId = saleCategory._id || saleCategory.id;
+                saleCategorySubcategories = subcategoriesMap.get(saleCategoryId) || [];
+                
+                // If "11.11 Sale" category has subcategories, add dropdown to static link
+                if (saleCategorySubcategories.length > 0) {
+                    const saleLink = mainMenu.querySelector('.menu-item:first-child a');
+                    if (saleLink) {
+                        // Convert static link to dropdown (but keep it clickable)
+                        const saleMenuItem = saleLink.closest('.menu-item');
+                        if (saleMenuItem) {
+                            saleMenuItem.className = 'menu-item type_dropdown has-children';
+                            saleLink.className = 'cms-item-title dropdown-toggle';
+                            // Update href to point to category page instead of products filter
+                            saleLink.href = `/category/${saleCategoryId}`;
+                            // Remove any Bootstrap data attributes that might block clicks
+                            saleLink.removeAttribute('data-bs-toggle');
+                            saleLink.setAttribute('aria-expanded', 'false');
+                            
+                            // Add dropdown icon
+                            if (!saleLink.querySelector('.icon-dropdown')) {
+                                const dropdownIcon = document.createElement('span');
+                                dropdownIcon.className = 'icon-dropdown';
+                                dropdownIcon.innerHTML = '<i class="icon-angle-down"></i>';
+                                saleLink.appendChild(dropdownIcon);
+                            }
+                            
+                            // Create dropdown menu
+                            let dropdownMenu = saleMenuItem.querySelector('.dropdown-menu');
+                            if (!dropdownMenu) {
+                                dropdownMenu = document.createElement('ul');
+                                dropdownMenu.className = 'dropdown-menu sub-menu';
+                                dropdownMenu.setAttribute('aria-labelledby', `category-${saleCategoryId}`);
+                                saleMenuItem.appendChild(dropdownMenu);
+                            }
+                            
+                            // Clear and populate dropdown
+                            dropdownMenu.innerHTML = '';
+                            saleCategorySubcategories
+                                .sort((a, b) => (a.ordering || 0) - (b.ordering || 0) || a.name.localeCompare(b.name))
+                                .forEach(subcat => {
+                                    const subcatId = subcat._id || subcat.id;
+                                    const subcatName = subcat.name || 'Unnamed Subcategory';
+                                    const subcatItem = document.createElement('li');
+                                    const subcatLink = document.createElement('a');
+                                    subcatLink.href = `/subcategory/${subcatId}`;
+                                    subcatLink.className = 'dropdown-item';
+                                    subcatLink.textContent = subcatName;
+                                    subcatItem.appendChild(subcatLink);
+                                    dropdownMenu.appendChild(subcatItem);
+                                });
+                            
+                            // Ensure the link is clickable - prevent Bootstrap from blocking it
+                            saleLink.addEventListener('click', function(e) {
+                                // Only prevent default if clicking on the dropdown icon
+                                const icon = saleLink.querySelector('.icon-dropdown');
+                                if (icon && (e.target === icon || icon.contains(e.target))) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    return false;
+                                }
+                                // Otherwise, allow navigation to category page
+                            }, true);
+                        }
+                    } else {
+                        // If no subcategories, just update the href to point to category page
+                        const saleLinkNoSub = mainMenu.querySelector('.menu-item:first-child a');
+                        if (saleLinkNoSub && saleCategory) {
+                            saleLinkNoSub.href = `/category/${saleCategoryId}`;
+                        }
+                    }
+                } else if (saleCategory) {
+                    // If "11.11 Sale" category exists but has no subcategories, update href to category page
+                    const saleLinkNoSub = mainMenu.querySelector('.menu-item:first-child a');
+                    if (saleLinkNoSub) {
+                        saleLinkNoSub.href = `/category/${saleCategoryId}`;
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Error loading subcategories:', error);
         }
+        
+        // Track added category IDs to prevent duplicates
+        const addedCategoryIds = new Set();
+        
+        // Add all categories as menu items with subcategories dropdown
+        // Only add categories that are actually in the database response
+        activeCategories.forEach(category => {
+            // Double-check: ensure category has required fields
+            if (!category._id && !category.id) {
+                console.warn('Skipping category without ID:', category);
+                return;
+            }
+            
+            const catId = category._id || category.id;
+            
+            // Skip if already added (prevent duplicates)
+            if (addedCategoryIds.has(catId)) {
+                console.warn('Skipping duplicate category:', category.name);
+                return;
+            }
+            addedCategoryIds.add(catId);
+            
+            const catName = category.name || 'Unnamed Category';
+            // Ensure we're comparing string IDs
+            const catIdStr = catId.toString();
+            const subcategories = subcategoriesMap.get(catIdStr) || [];
+            const hasSubcategories = subcategories.length > 0;
+            
+            if (hasSubcategories) {
+                console.log(`Category "${catName}" (ID: ${catIdStr}) has ${subcategories.length} subcategories:`, 
+                    subcategories.map(s => s.name));
+            }
+            
+            // Create menu item
+            const menuItem = document.createElement('li');
+            menuItem.className = hasSubcategories ? 'menu-item type_dropdown has-children' : 'menu-item';
+            
+            // Create link
+            const link = document.createElement('a');
+            link.href = `/category/${catId}`;
+            link.className = hasSubcategories ? 'cms-item-title nav-category-link dropdown-toggle' : 'cms-item-title nav-category-link';
+            link.setAttribute('data-category-key', catName.toLowerCase().replace(/\s+/g, '-'));
+            link.textContent = catName;
+            
+            if (hasSubcategories) {
+                // Don't use data-bs-toggle to prevent Bootstrap from blocking clicks
+                // We'll use CSS hover for dropdown, but allow clicking to go to category page
+                link.setAttribute('aria-expanded', 'false');
+                const dropdownIcon = document.createElement('span');
+                dropdownIcon.className = 'icon-dropdown';
+                dropdownIcon.innerHTML = '<i class="icon-angle-down"></i>';
+                link.appendChild(dropdownIcon);
+                
+                // Create dropdown menu
+                const dropdownMenu = document.createElement('ul');
+                dropdownMenu.className = 'dropdown-menu sub-menu';
+                dropdownMenu.setAttribute('aria-labelledby', `category-${catId}`);
+                
+                subcategories
+                    .sort((a, b) => (a.ordering || 0) - (b.ordering || 0) || a.name.localeCompare(b.name))
+                    .forEach(subcat => {
+                        const subcatId = subcat._id || subcat.id;
+                        const subcatName = subcat.name || 'Unnamed Subcategory';
+                        const subcatItem = document.createElement('li');
+                        const subcatLink = document.createElement('a');
+                        subcatLink.href = `/subcategory/${subcatId}`;
+                        subcatLink.className = 'dropdown-item';
+                        subcatLink.textContent = subcatName;
+                        subcatItem.appendChild(subcatLink);
+                        dropdownMenu.appendChild(subcatItem);
+                    });
+                
+                menuItem.appendChild(link);
+                menuItem.appendChild(dropdownMenu);
+            } else {
+                menuItem.appendChild(link);
+            }
+            
+            mainMenu.appendChild(menuItem);
+        });
+        
+        // Re-initialize category links after adding them
+        await initialiseCategoryNavLinks();
+        
+        // Prevent Bootstrap from blocking clicks on dropdown toggles
+        // Allow category links to be clickable even when they have dropdowns
+        const dropdownToggles = mainMenu.querySelectorAll('.dropdown-toggle');
+        dropdownToggles.forEach(toggle => {
+            // Remove Bootstrap's click handler that prevents navigation
+            toggle.addEventListener('click', function(e) {
+                // Only prevent default if clicking on the dropdown icon, not the link itself
+                const icon = toggle.querySelector('.icon-dropdown');
+                if (icon && e.target === icon || icon?.contains(e.target)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+                // Otherwise, allow the link to work normally
+            }, true);
+        });
+        
+        if (typeof window.Logger !== 'undefined') {
+            window.Logger.info(`Loaded ${activeCategories.length} categories into navbar`);
+        } else {
+            console.log(`Loaded ${activeCategories.length} categories into navbar`);
+        }
+        
+        categoriesLoading = false;
     } catch (error) {
+        categoriesLoading = false;
         if (typeof window.Logger !== 'undefined') {
             window.Logger.warn('Error loading categories for navbar', { error: error.message });
         } else {
@@ -1883,7 +2165,8 @@ function htmlEscape(content = '') {
 async function loadFooter() {
     try {
         console.log('Loading footer data from database...');
-        const footer = await fetchJSON('/api/footer/public');
+        // Use cache-busting to ensure fresh data
+        const footer = await fetchJSON(`/api/footer/public?_t=${Date.now()}`);
         console.log('Footer data received:', footer);
         
         const footerContainer = document.getElementById('siteFooter');
@@ -1947,7 +2230,7 @@ async function loadFooter() {
         }
         
         // Departments Section (will be loaded separately)
-        footerHTML += '<div class="col-lg-3"><div class="footer-links"><h4>Departments</h4><ul id="footerDepartments"></ul></div></div>';
+        footerHTML += '<div class="col-lg-3"><div class="footer-links"><h4>DEPARTMENTS</h4><ul id="footerDepartments"></ul></div></div>';
         
         // Contact Info Section
         if (footer.address || footer.phone || footer.email) {
@@ -1976,17 +2259,43 @@ async function loadFooter() {
         footerHTML += '</div>';
         footerHTML += '<div class="col-md-6 text-end">';
         if (footer.paymentMethodsImage) {
-            footerHTML += `<img src="${htmlEscape(footer.paymentMethodsImage)}" alt="Payment Methods">`;
+            footerHTML += `<img src="${htmlEscape(footer.paymentMethodsImage)}" alt="Payment Methods" class="footer-payment-methods-img">`;
         }
         footerHTML += '</div></div></div>'; // Close footer-bottom, row
         footerHTML += '</div>'; // Close container
         
         footerContainer.innerHTML = footerHTML;
         
+        // Load departments into footer after HTML is rendered
+        await loadFooterDepartments();
+        
         console.log('Footer loaded and rendered successfully');
     } catch (error) {
         console.error('Error loading footer:', error);
         console.error('Error details:', error.message, error.stack);
+    }
+}
+
+// Load departments into footer
+async function loadFooterDepartments() {
+    try {
+        // Use cache-busting to ensure fresh data
+        const departments = await fetchJSON(`/api/departments?_t=${Date.now()}`);
+        if (!Array.isArray(departments) || departments.length === 0) {
+            console.warn('No departments found for footer');
+            return;
+        }
+        
+        const footerDepartments = document.getElementById('footerDepartments');
+        if (footerDepartments) {
+            footerDepartments.innerHTML = departments.map(dept => {
+                const deptId = dept._id || dept.id;
+                return `<li><a href="/department/${deptId}">${htmlEscape(dept.name)}</a></li>`;
+            }).join('');
+            console.log(`Loaded ${departments.length} departments into footer`);
+        }
+    } catch (error) {
+        console.error('Error loading footer departments:', error);
     }
 }
 

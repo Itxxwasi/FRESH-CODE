@@ -21,6 +21,7 @@ const HomepageSectionSchema = new mongoose.Schema({
             'categoryFeatured',   // Featured categories grid
             'categoryGrid',       // Category grid with images
             'categoryCircles',    // Circular category images
+            'departmentGrid',     // Department grid with images
             'productTabs',        // Tabbed product sections
             'productCarousel',    // Product carousel
             'bannerFullWidth',    // Full-width promotional banner

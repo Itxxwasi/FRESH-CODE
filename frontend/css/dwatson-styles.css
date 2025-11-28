@@ -12,12 +12,14 @@
     --color-link: #1a1a1a;
     --color-link-hover: #d93939;
     --color-scrollbar: #444444;
-    --color-bg-header: #d93939; /* RED header matching dwatsoncosmetics.pk */
+    --color-bg-header: #c42525; /* RED header matching dwatsoncosmetics.pk */
     --color-icon-header: #ffffff; /* WHITE icons on red background */
     --color-count-header: #2d2a6e; /* BLUE badge */
     --color-text-top-header: #ffffff; /* WHITE text on red */
     --color-text-top-header-hover: #ffffff; /* WHITE hover */
-    --bg-top-header: #d93939; /* RED top bar */
+    --bg-top-header: #c42525; /* RED top bar */
+    --bg-navbar: #c42525; /* RED navbar */
+    --bg-announcement-bar-2: #c42525; /* RED announcement bar 2 */
     
     /* Menu Colors */
     --color-link-menu: #1a1a1a;
@@ -232,7 +234,7 @@ a:hover {
 
 .header-top {
     padding: 15px 0;
-    background-color: var(--color-bg-header); /* Vibrant red background #d93939 */
+    background-color: #c42525 !important; /* RED top header background */
     border-bottom: none !important; /* Remove white line to make flush with nav */
     margin-bottom: 0 !important;
     padding-bottom: 15px !important;
@@ -486,8 +488,9 @@ a:hover {
 }
 
 .header-nav {
-    background-color: #d93939 !important; /* RED navbar matching dwatsoncosmetics.pk */
+    background-color: #c42525 !important; /* RED navbar background */
     border: none !important;
+    border-top: 1px solid #ffffff !important; /* White border between header and navbar */
     box-shadow: none !important;
     padding: 0 !important;
     margin: 0 !important;
@@ -545,21 +548,23 @@ a:hover {
 .main-menu-wrapper {
     position: relative;
     background-color: transparent !important;
+    width: 100%;
 }
 
 .main-menu {
     list-style: none;
-    margin: 0;
+    margin: 0 auto;
     padding: 0;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
     -ms-overflow-style: none;
     background-color: transparent !important;
+    width: 100%;
 }
 
 .main-menu::-webkit-scrollbar {
@@ -581,7 +586,7 @@ a:hover {
 .main-menu .menu-item > .cms-item-title {
     display: flex;
     align-items: center;
-    padding: 18px 16px;
+    padding: 15px 12px;
     font-size: 15px;
     font-weight: 500;
     color: #ffffff;
@@ -670,6 +675,12 @@ a:hover {
     outline: none !important;
 }
 
+/* Ensure menu items with dropdowns are positioned relatively */
+.main-menu .menu-item.has-children,
+.main-menu .menu-item.type_dropdown {
+    position: relative;
+}
+
 .main-menu .menu-item .dropdown-menu {
     position: absolute;
     top: 100%;
@@ -681,14 +692,61 @@ a:hover {
     padding: 20px 0;
     min-width: 250px;
     z-index: 1000;
-    display: none;
+    display: block;
     list-style: none;
     margin: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+/* Show dropdown on hover for categories with subcategories */
+.main-menu .menu-item.has-children:hover .dropdown-menu,
+.main-menu .menu-item.type_dropdown:hover .dropdown-menu,
+.main-menu .menu-item.has-children .dropdown-menu:hover,
+.main-menu .menu-item.type_dropdown .dropdown-menu:hover {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.main-menu .menu-item.has-children:hover .dropdown-toggle,
+.main-menu .menu-item.type_dropdown:hover .dropdown-toggle {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Keep dropdown visible when hovering over it */
+.main-menu .menu-item.has-children .dropdown-menu:hover,
+.main-menu .menu-item.type_dropdown .dropdown-menu:hover {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Ensure parent menu item stays hovered when hovering dropdown */
+.main-menu .menu-item.has-children .dropdown-menu:hover ~ .dropdown-toggle,
+.main-menu .menu-item.type_dropdown .dropdown-menu:hover ~ .dropdown-toggle {
+    background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .main-menu .menu-item:hover .dropdown-menu,
 .main-menu .menu-item.show .dropdown-menu {
     display: block;
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Prevent Bootstrap from blocking clicks on dropdown toggles */
+.main-menu .menu-item.has-children .dropdown-toggle,
+.main-menu .menu-item.type_dropdown .dropdown-toggle {
+    pointer-events: auto !important;
+    cursor: pointer;
+}
+
+/* Allow clicking on category links even when they have dropdowns */
+.main-menu .menu-item.has-children > a,
+.main-menu .menu-item.type_dropdown > a {
+    pointer-events: auto !important;
 }
 
 .main-menu .menu-item .dropdown-menu li {
@@ -1609,18 +1667,26 @@ a:hover {
 
 .banner-full-width__image {
     width: 100%;
-    height: 400px;
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 700px;
+    height: auto;
     display: block;
     transition: transform 0.6s ease;
     object-fit: cover;
     object-position: center;
-    /* Fixed height - won't change regardless of image */
+    /* Minimum height of 700px for all banners */
 }
 
 .banner-full-width__link:hover .banner-full-width__image {
     transform: scale(1.05);
+}
+
+.banner-full-width__video {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+    /* Video banners maintain their natural aspect ratio */
 }
 
 /* ============ Banner Stack (Two Banners Combined) ============ */
@@ -1661,7 +1727,7 @@ a:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    min-height: 0;
+    min-height: 700px;
     max-height: none;
     object-fit: cover;
     object-position: center;
@@ -1717,52 +1783,66 @@ a:hover {
 
 /* ============ Scrolling Text Styles ============ */
 .scrolling-text {
-    background-color: #ffffff !important; /* White background */
     overflow: hidden;
     white-space: nowrap;
     position: relative;
-    color: #d93939 !important; /* Red font color */
+    /* Colors are set via inline styles from config - don't force them here */
 }
 
+/* Announcement Bar-2 specific styling - use red background */
+.scrolling-text[data-section-name*="Announcement Bar-2"],
+.scrolling-text[data-section-name*="announcement bar-2"] {
+    background-color: #c42525 !important; /* RED background for announcement bar 2 */
+}
+
+.scrolling-text,
 .scrolling-text * {
-    color: #d93939 !important; /* Force red color on all child elements */
+    /* Inherit colors from parent inline styles - don't force specific colors */
+    color: inherit;
 }
 
 .scrolling-text__wrapper {
     overflow: hidden;
+    width: 100%;
+    position: relative;
 }
 
 .scrolling-text__inner {
     display: inline-flex;
-    /* Start completely off-screen to the right and move fully to the left */
-    animation: scrollText var(--scroll-speed, 12s) linear infinite;
+    will-change: transform;
+    /* Continuous scroll from right to left - seamless infinite loop */
+    animation: scrollTextRightToLeft var(--scroll-speed, 20s) linear infinite;
+    width: max-content;
 }
 
 .scrolling-text__content {
     display: inline-flex;
     align-items: center;
     gap: 30px;
+    white-space: nowrap;
 }
 
 .scrolling-text__item {
     display: inline-block;
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
-    color: #d93939 !important; /* Red font color - force display */
+    /* Color is inherited from parent .scrolling-text which gets it from inline style */
+    letter-spacing: 0.5px;
 }
 
 .scrolling-text__icon {
     font-size: 18px;
-    color: #d93939 !important; /* Red icon color */
+    /* Color is inherited from parent .scrolling-text which gets it from inline style */
+    font-weight: 700;
 }
 
-@keyframes scrollText {
+@keyframes scrollTextRightToLeft {
     0% {
-        transform: translateX(100%);
+        transform: translateX(0);
     }
     100% {
-        transform: translateX(-100%);
+        transform: translateX(-25%);
     }
 }
 
@@ -3342,6 +3422,21 @@ body.mobile-menu-open {
     width: auto;
 }
 
+/* Payment Methods Image - Consistent sizing across all pages */
+.footer-payment-methods-img,
+.footer-bottom img.footer-payment-methods-img,
+.footer-bottom .footer-payment-methods-img,
+.footer-bottom .col-md-6.text-end img.footer-payment-methods-img,
+.footer-bottom .col-md-6.text-end .footer-payment-methods-img {
+    max-height: 40px !important;
+    height: auto !important;
+    width: auto !important;
+    max-width: 100% !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin-left: auto !important;
+}
+
 /* ============ WhatsApp Chat Button ============ */
 .whatsapp-chat {
     position: fixed;
@@ -3505,14 +3600,13 @@ body.mobile-menu-open {
 
 .banner-promo__image {
     width: 100%;
-    height: 400px;
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 700px;
+    height: auto;
     display: block;
     transition: transform 0.6s ease;
     object-fit: cover;
     object-position: center;
-    /* Fixed height - won't change regardless of image */
+    /* Minimum height of 700px for all banners */
 }
 
 .banner-promo__link:hover .banner-promo__image {
@@ -3526,9 +3620,8 @@ body.mobile-menu-open {
 }
 
 .banner-promo--small .banner-promo__media {
-    height: 400px;
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 700px;
+    height: auto;
 }
 
 .banner-promo--small .banner-promo__title {
@@ -3545,9 +3638,8 @@ body.mobile-menu-open {
 }
 
 .banner-promo--medium .banner-promo__media {
-    height: 400px;
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 700px;
+    height: auto;
 }
 
 .banner-promo--large {
@@ -3556,9 +3648,8 @@ body.mobile-menu-open {
 }
 
 .banner-promo--large .banner-promo__media {
-    height: 400px;
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 700px;
+    height: auto;
 }
 
 .banner-promo--large .banner-promo__title {
@@ -3575,9 +3666,8 @@ body.mobile-menu-open {
 }
 
 .banner-promo--full-width .banner-promo__media {
-    height: 400px;
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 700px;
+    height: auto;
     border-radius: 0;
 }
 
@@ -3589,15 +3679,14 @@ body.mobile-menu-open {
     font-size: 1.5rem;
 }
 
-/* All banner images use fixed 400px height (matching reference) */
+/* All banner images use minimum 700px height */
 .banner-promo__media--small .banner-promo__image,
 .banner-promo__media--medium .banner-promo__image,
 .banner-promo__media--large .banner-promo__image,
 .banner-promo__media--full-width .banner-promo__image {
     width: 100%;
-    height: 400px;
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 700px;
+    height: auto;
     object-fit: cover;
     object-position: center;
 }
@@ -3636,15 +3725,13 @@ body.mobile-menu-open {
     .banner-promo--medium .banner-promo__media,
     .banner-promo--large .banner-promo__media,
     .banner-promo--full-width .banner-promo__media {
-        height: 400px;
-        min-height: 400px;
-        max-height: 400px;
+        min-height: 700px;
+        height: auto;
     }
     
     .banner-promo__image {
-        height: 400px;
-        min-height: 400px;
-        max-height: 400px;
+        min-height: 700px;
+        height: auto;
     }
     
     .banner-promo--large .banner-promo__title,
@@ -3667,20 +3754,18 @@ body.mobile-menu-open {
         margin: 24px auto;
     }
     
-    /* All banners maintain 400px height on mobile (matching reference) */
+    /* All banners maintain 700px minimum height on mobile */
     .banner-promo--small .banner-promo__media,
     .banner-promo--medium .banner-promo__media,
     .banner-promo--large .banner-promo__media,
     .banner-promo--full-width .banner-promo__media {
-        height: 400px;
-        min-height: 400px;
-        max-height: 400px;
+        min-height: 700px;
+        height: auto;
     }
     
     .banner-promo__image {
-        height: 400px;
-        min-height: 400px;
-        max-height: 400px;
+        min-height: 700px;
+        height: auto;
     }
     
     .banner-promo--small .banner-promo__title {
@@ -3820,6 +3905,17 @@ body.mobile-menu-open {
     
     .footer-bottom .text-end {
         text-align: center !important;
+    }
+    
+    .footer-payment-methods-img,
+    .footer-bottom img.footer-payment-methods-img,
+    .footer-bottom .footer-payment-methods-img,
+    .footer-bottom .col-md-6.text-end img.footer-payment-methods-img {
+        max-height: 35px !important;
+        height: auto !important;
+        width: auto !important;
+        margin: 10px auto 0 !important;
+        display: block !important;
     }
 }
 

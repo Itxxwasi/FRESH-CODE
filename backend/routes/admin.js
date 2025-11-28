@@ -3,6 +3,7 @@ const router = express.Router();
 const adminAuth = require('../middleware/adminAuth');
 const Department = require('../models/Department');
 const Category = require('../models/Category');
+const Subcategory = require('../models/Subcategory');
 const Product = require('../models/Product');
 const Slider = require('../models/Slider');
 const Banner = require('../models/Banner');
@@ -68,6 +69,20 @@ router.get('/categories', adminAuth, async (req, res) => {
         const categories = await Category.find().populate('department', 'name').populate('imageUpload');
         res.json(categories);
     } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Get all subcategories (admin)
+router.get('/subcategories', adminAuth, async (req, res) => {
+    try {
+        const subcategories = await Subcategory.find()
+            .populate('category', 'name')
+            .populate('imageUpload')
+            .sort({ ordering: 1, name: 1 });
+        res.json(Array.isArray(subcategories) ? subcategories : []);
+    } catch (err) {
+        console.error('Error fetching subcategories for admin:', err);
         res.status(500).json({ message: err.message });
     }
 });

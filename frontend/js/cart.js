@@ -255,28 +255,27 @@ function renderCartItems(items) {
         const finalPrice = itemPrice * (1 - discount / 100);
         const itemSubtotal = item.subtotal || (finalPrice * quantity);
         
+        // Get product weight/quantity info
+        const productWeight = product.weight || product.quantity || product.size || '';
+        const weightText = productWeight ? ` / ${productWeight}` : '';
+        
         html += `
             <div class="cart-item" data-product-id="${productId}">
-                <div class="row align-items-center">
-                    <div class="col-md-3 col-12">
+                <div class="cart-item-row">
+                    <div class="cart-item-image-section">
                         <div class="cart-item-image-wrapper">
                             ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ''}
                             <img src="${productImage}" alt="${productName}" class="cart-item-image">
                         </div>
                     </div>
-                    <div class="col-md-3 col-12">
-                        <div class="cart-item-info">
-                            <h6 class="cart-item-title">${productName}</h6>
-                            ${product.category?.name ? `<div class="cart-item-category">${product.category.name}</div>` : ''}
-                        </div>
+                    <div class="cart-item-details-section">
+                        <h6 class="cart-item-title">${productName}</h6>
+                        <div class="cart-item-weight">${productWeight || product.category?.name || ''}${weightText}</div>
+                        <button class="remove-item-btn" data-product-id="${productId}" type="button">
+                            <i class="fas fa-trash"></i> Remove
+                        </button>
                     </div>
-                    <div class="col-md-2 col-6">
-                        <div class="cart-item-price-section">
-                            <div class="cart-item-price">Rs. ${finalPrice.toFixed(2)}</div>
-                            ${discount > 0 ? `<div class="cart-item-price-old">Rs. ${itemPrice.toFixed(2)}</div>` : ''}
-                        </div>
-                    </div>
-                    <div class="col-md-2 col-6">
+                    <div class="cart-item-controls-section">
                         <div class="quantity-controls">
                             <button class="quantity-btn decrease-quantity" data-product-id="${productId}" type="button">
                                 <i class="fas fa-minus"></i>
@@ -287,14 +286,9 @@ function renderCartItems(items) {
                             </button>
                         </div>
                     </div>
-                    <div class="col-md-2 col-12">
-                        <div class="item-subtotal">
-                            <div class="item-subtotal-label">Subtotal</div>
-                            <div class="item-subtotal-value">Rs. ${itemSubtotal.toFixed(2)}</div>
-                        </div>
-                        <button class="remove-item" data-product-id="${productId}" type="button" title="Remove item">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    <div class="cart-item-price-section">
+                        <div class="item-price-current">Rs. ${finalPrice.toFixed(2)}</div>
+                        ${discount > 0 ? `<div class="item-price-old">Rs. ${itemPrice.toFixed(2)}</div>` : ''}
                     </div>
                 </div>
             </div>
@@ -331,7 +325,7 @@ function renderCartItems(items) {
         }
     });
     
-    $('.remove-item').click(function() {
+    $('.remove-item, .remove-item-btn').click(function() {
         const productId = $(this).data('product-id');
         removeItem(productId);
     });

@@ -495,6 +495,18 @@
     .footer a {
         font-size: 13px;
     }
+    
+    /* Payment Methods Image - Mobile */
+    .footer-payment-methods-img,
+    .footer-bottom img.footer-payment-methods-img {
+        max-height: 35px !important;
+        height: auto !important;
+        width: auto !important;
+        max-width: 100% !important;
+        object-fit: contain !important;
+        display: block !important;
+        margin: 10px auto 0 !important;
+    }
 }
 
 /* ============ Cart & Checkout Mobile Fixes ============ */

@@ -97,9 +97,10 @@ router.post('/upload', adminAuth, uploadBanner, async (req, res) => {
             deleteTempFile(req.file.path);
 
             // Save to MongoDB
+            const bannerTitle = req.body.title || 'Untitled Banner';
             const banner = new Banner({
-                title: req.body.title || 'Untitled Banner',
-                description: req.body.description || '',
+                title: bannerTitle,
+                description: req.body.description || bannerTitle, // Use title as default description if not provided
                 image: secureUrl,
                 banner_type: bannerType,
                 link: req.body.link || '#',
@@ -151,9 +152,10 @@ router.post('/upload', adminAuth, uploadBanner, async (req, res) => {
         const videoType = bannerType === 'video' ? detectVideoType(secureUrl) : null;
         
         // Save to MongoDB
+        const bannerTitle = req.body.title || 'Untitled Banner';
         const banner = new Banner({
-            title: req.body.title || 'Untitled Banner',
-            description: req.body.description || '',
+            title: bannerTitle,
+            description: req.body.description || bannerTitle, // Use title as default description if not provided
             image: secureUrl,
             banner_type: bannerType,
             video_type: videoType,
@@ -231,11 +233,21 @@ router.get('/', async (req, res) => {
             .sort({ createdAt: -1 })
             .lean(); // Faster queries
         
-        // Add aggressive cache headers
-        res.set({
-            'Cache-Control': 'public, max-age=300, s-maxage=600', // 5 min browser, 10 min CDN
-            'Vary': 'Accept-Encoding'
-        });
+        // Reduced cache time to ensure deleted banners disappear quickly
+        // If _t (timestamp) parameter is present, use no-cache to bypass cache
+        if (req.query._t) {
+            res.set({
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
+        } else {
+            // Short cache for normal requests
+            res.set({
+                'Cache-Control': 'public, max-age=60, s-maxage=120', // 1 min browser, 2 min CDN
+                'Vary': 'Accept-Encoding'
+            });
+        }
         res.json(banners);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -311,7 +323,18 @@ router.post('/', adminAuth, async (req, res) => {
         res.status(201).json(populatedBanner);
     } catch (err) {
         const status = err.statusCode || 400;
-        res.status(status).json({ message: err.message });
+        let errorMessage = err.message;
+        
+        // Provide more detailed error message for validation errors
+        if (err.name === 'ValidationError') {
+            const validationErrors = Object.values(err.errors || {}).map(e => e.message).join(', ');
+            errorMessage = `Validation Error: ${validationErrors || err.message}`;
+        } else if (err.name === 'CastError') {
+            errorMessage = `Invalid value: ${err.message}`;
+        }
+        
+        console.error('Banner creation error:', err);
+        res.status(status).json({ message: errorMessage });
     }
 });
 
@@ -323,6 +346,8 @@ router.put('/:id', adminAuth, async (req, res) => {
             return res.status(404).json({ message: 'Banner not found' });
         }
 
+        console.log('Updating banner with position:', req.body.position);
+        
         banner.title = req.body.title || banner.title;
         banner.description = req.body.description || banner.description;
         banner.link = req.body.link || banner.link;
@@ -355,7 +380,18 @@ router.put('/:id', adminAuth, async (req, res) => {
         res.json(populatedBanner);
     } catch (err) {
         const status = err.statusCode || 400;
-        res.status(status).json({ message: err.message });
+        let errorMessage = err.message;
+        
+        // Provide more detailed error message for validation errors
+        if (err.name === 'ValidationError') {
+            const validationErrors = Object.values(err.errors || {}).map(e => e.message).join(', ');
+            errorMessage = `Validation Error: ${validationErrors || err.message}`;
+        } else if (err.name === 'CastError') {
+            errorMessage = `Invalid value: ${err.message}`;
+        }
+        
+        console.error('Banner update error:', err);
+        res.status(status).json({ message: errorMessage });
     }
 });
 
