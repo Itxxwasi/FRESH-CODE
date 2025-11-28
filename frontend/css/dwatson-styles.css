@@ -524,17 +524,21 @@ a:hover {
 
 .header-nav-inner {
     position: relative;
+    overflow: visible; /* Allow dropdowns to overflow */
+    z-index: 100; /* Ensure dropdowns appear above other content */
 }
 
 .box-header-nav {
     position: relative;
+    overflow: visible; /* Allow dropdowns to overflow */
+    z-index: 100; /* Ensure dropdowns appear above other content */
 }
 
 .container-wapper {
     max-width: 100%;
     margin: 0 auto;
     padding: 0 15px;
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to visible to allow dropdowns to show */
 }
 
 /* Hide full desktop navbar on small screens - use mobile menu button instead */
@@ -549,6 +553,8 @@ a:hover {
     position: relative;
     background-color: transparent !important;
     width: 100%;
+    overflow: visible; /* Allow dropdowns to overflow */
+    z-index: 100; /* Ensure dropdowns appear above other content */
 }
 
 .main-menu {
@@ -691,13 +697,14 @@ a:hover {
     border-radius: 0;
     padding: 20px 0;
     min-width: 250px;
-    z-index: 1000;
-    display: block;
+    z-index: 10000; /* Increased from 1000 to ensure it appears above everything */
+    display: block !important; /* Force display */
     list-style: none;
     margin: 0;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none; /* Prevent blocking hover when hidden */
 }
 
 /* Show dropdown on hover for categories with subcategories */
@@ -708,6 +715,7 @@ a:hover {
     display: block !important;
     opacity: 1 !important;
     visibility: visible !important;
+    pointer-events: auto !important; /* Enable interaction when visible */
 }
 
 .main-menu .menu-item.has-children:hover .dropdown-toggle,
@@ -721,6 +729,7 @@ a:hover {
     display: block !important;
     opacity: 1 !important;
     visibility: visible !important;
+    pointer-events: auto !important; /* Enable interaction when visible */
 }
 
 /* Ensure parent menu item stays hovered when hovering dropdown */
@@ -731,9 +740,10 @@ a:hover {
 
 .main-menu .menu-item:hover .dropdown-menu,
 .main-menu .menu-item.show .dropdown-menu {
-    display: block;
-    opacity: 1;
-    visibility: visible;
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important; /* Enable interaction when visible */
 }
 
 /* Prevent Bootstrap from blocking clicks on dropdown toggles */

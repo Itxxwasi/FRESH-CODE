@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 // Import routes
@@ -41,9 +42,37 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
+// Global middleware to disable caching for ALL API routes in development
+const isDevelopment = process.env.NODE_ENV !== 'production';
+if (isDevelopment) {
+    app.use('/api', (req, res, next) => {
+        // Disable all caching for API routes in development
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Last-Modified': new Date().toUTCString(),
+            'ETag': '' // Remove ETag to prevent conditional requests
+        });
+        next();
+    });
+    
+    // Also disable caching for HTML files in development
+    app.use((req, res, next) => {
+        if (req.path.endsWith('.html') || !req.path.includes('.')) {
+            res.set({
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
+        }
+        next();
+    });
+}
+
 // Serve static files with aggressive caching (like Shopify CDN)
 // In development, disable caching for easier development
-const isDevelopment = process.env.NODE_ENV !== 'production';
+// Note: isDevelopment is already defined above
 
 // Add timestamp for cache busting in development
 const devTimestamp = isDevelopment ? `?t=${Date.now()}` : '';
@@ -79,28 +108,27 @@ app.use('/uploads', express.static(path.join(__dirname, './uploads'), {
     lastModified: true
 }));
 
-// Database connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://wasidev710_db_user:5xwzp9OQcJkMe1Tu@cluster0.ycj6rnq.mongodb.net/mydatabse?retryWrites=true&w=majority&appName=Cluster0';
-const dbSync = require('./services/databaseSync');
+// Database connection - Connect to ONLY the database specified in MONGODB_URI
+const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!process.env.MONGODB_URI) {
-    console.log('ℹ️  Using default local MongoDB: mongodb://localhost:27017/dwatson_pk');
+if (!MONGODB_URI) {
+    console.error('❌ MONGODB_URI is required in .env file');
+    console.error('   Please set MONGODB_URI in your .env file');
+    process.exit(1);
 }
 
-// Connect to local database (primary)
+console.log('📡 Connecting to database from MONGODB_URI...');
+
+// Connect to database (single connection only)
 mongoose.connect(MONGODB_URI, {
     serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
     socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
 })
 .then(async () => {
-    console.log('✅ Local MongoDB connected successfully');
+    console.log('✅ Database connected successfully');
+    console.log(`   Using database from MONGODB_URI`);
     
-    // Initialize live database connection for syncing
-    if (process.env.LIVE_MONGODB_URI) {
-        await dbSync.initLiveConnection();
-    }
-    
-    // Load models (this sets up auto-sync hooks)
+    // Load models (no auto-sync hooks - single database only)
     require('./models/index');
     
     // Ensure admin user exists
@@ -163,6 +191,41 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Helper function to send HTML with cache-busting in development
+function sendHTMLWithCacheBusting(req, res, filePath) {
+    if (isDevelopment) {
+        // In development, read file and inject cache-busting query params
+        try {
+            let html = fs.readFileSync(filePath, 'utf8');
+            const timestamp = Date.now();
+            
+            // Add cache-busting to CSS and JS files
+            html = html.replace(
+                /(href|src)=["']([^"']*\.(css|js))(\?v=\d+)?["']/gi,
+                (match, attr, url, ext, existingVersion) => {
+                    // Remove existing version if present, add new one
+                    const cleanUrl = url.replace(/\?v=\d+/, '');
+                    return `${attr}="${cleanUrl}?v=${timestamp}"`;
+                }
+            );
+            
+            res.set({
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
+            res.send(html);
+        } catch (error) {
+            console.error('Error reading HTML file:', error);
+            res.sendFile(filePath);
+        }
+    } else {
+        // In production, send file normally
+        res.sendFile(filePath);
+    }
+}
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
@@ -195,16 +258,16 @@ app.use('/api/admin/footer', footerRoutes);
 
 // Admin dashboard route
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/admin.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/admin.html'));
 });
 
 // Cart page route
 app.get('/cart', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/cart.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/cart.html'));
 });
 
 app.get('/cart.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/cart.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/cart.html'));
 });
 
 // Department page route (must be after static files but before catch-all)
@@ -215,7 +278,7 @@ app.get('/department/:id', (req, res) => {
     if (id.includes('.') || id.includes('/')) {
         return res.status(404).send('Not found');
     }
-    res.sendFile(path.join(__dirname, '../frontend/department.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/department.html'));
 });
 
 // Category page route
@@ -224,7 +287,16 @@ app.get('/category/:id', (req, res) => {
     if (id.includes('.') || id.includes('/')) {
         return res.status(404).send('Not found');
     }
-    res.sendFile(path.join(__dirname, '../frontend/category.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/category.html'));
+});
+
+// Subcategory page route
+app.get('/subcategory/:id', (req, res) => {
+    const id = req.params.id;
+    if (id.includes('.') || id.includes('/')) {
+        return res.status(404).send('Not found');
+    }
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/subcategory.html'));
 });
 
 // Products page route
@@ -232,7 +304,7 @@ app.get('/products', (req, res) => {
     if (req.path.includes('.')) {
         return res.status(404).send('Not found');
     }
-    res.sendFile(path.join(__dirname, '../frontend/products.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/products.html'));
 });
 
 // Product detail page route
@@ -241,48 +313,48 @@ app.get('/product/:id', (req, res) => {
     if (id.includes('.') || id.includes('/')) {
         return res.status(404).send('Not found');
     }
-    res.sendFile(path.join(__dirname, '../frontend/product.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/product.html'));
 });
 
 // About Us page route
 app.get('/about', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/about.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/about.html'));
 });
 
 app.get('/about.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/about.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/about.html'));
 });
 
 // Contact page route
 app.get('/contact', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/contact.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/contact.html'));
 });
 
 app.get('/contact.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/contact.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/contact.html'));
 });
 
 // Login page route
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/login.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/login.html'));
 });
 
 app.get('/login.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/login.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/login.html'));
 });
 
 // Register page route
 app.get('/register', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/register.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/register.html'));
 });
 
 app.get('/register.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/register.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/register.html'));
 });
 
 // Catch-all handler to serve the frontend for any non-API routes
 app.use('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/index.html'));
 });
 
 // Start server

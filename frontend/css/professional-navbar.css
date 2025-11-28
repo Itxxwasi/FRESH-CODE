@@ -1,0 +1,419 @@
+/* ============ Professional Navbar Design ============ */
+
+/* Main Navigation Container */
+.professional-nav {
+    position: relative;
+    width: 100%;
+    background-color: transparent;
+}
+
+.nav-menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0;
+}
+
+/* Nav Item */
+.nav-item {
+    position: relative;
+    margin: 0;
+    padding: 0;
+}
+
+/* Nav Link */
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 18px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    font-family: "Inter", sans-serif;
+    letter-spacing: 0.3px;
+    position: relative;
+}
+
+.nav-link:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.nav-link-dropdown {
+    padding-right: 35px;
+}
+
+.nav-arrow {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    transition: transform 0.3s ease;
+    opacity: 0.8;
+}
+
+.nav-item-dropdown:hover .nav-arrow {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+/* Mega Menu Container */
+.mega-menu {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    width: 100%;
+    max-width: 1200px;
+    background-color: #ffffff !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    border-top: 3px solid #c42525;
+    border-radius: 0 0 8px 8px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 10000;
+    padding: 0;
+    margin: 0;
+    pointer-events: none;
+}
+
+.nav-item-dropdown:hover .mega-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.mega-menu-content {
+    padding: 40px 35px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 40px;
+    max-height: 500px;
+    overflow-y: auto;
+    background-color: #ffffff !important;
+    border-radius: 0 0 8px 8px;
+}
+
+/* Category Column in Mega Menu */
+.mega-menu-column {
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Allow flex items to shrink */
+    background-color: #ffffff !important;
+}
+
+.mega-menu-category {
+    margin-bottom: 25px;
+    width: 100%;
+    min-width: 0; /* Prevent overflow */
+    background-color: #ffffff !important;
+}
+
+.mega-menu-category-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2d2a6e;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e8e8e8;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-family: "Montserrat", sans-serif;
+    background-color: #ffffff !important;
+}
+
+.mega-menu-category-title a {
+    color: #2d2a6e;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-block;
+    padding: 5px 0;
+}
+
+.mega-menu-category-title a:hover {
+    color: #c42525;
+    transform: translateX(5px);
+}
+
+/* Subcategory List */
+.mega-menu-subcategories {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    min-width: 0; /* Prevent overflow */
+}
+
+.mega-menu-subcategory-item {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-width: 0; /* Prevent overflow */
+}
+
+.mega-menu-subcategory-link {
+    display: block;
+    padding: 12px 15px 12px 25px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #666666;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    position: relative;
+    background-color: #ffffff !important;
+    border-radius: 4px;
+    margin: 3px 0;
+    font-family: "Inter", sans-serif;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.6;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.mega-menu-subcategory-link::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    background-color: #c42525;
+    border-radius: 50%;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+.mega-menu-subcategory-link:hover {
+    color: #ffffff;
+    background-color: #c42525;
+    padding-left: 30px;
+    font-weight: 600;
+    transform: translateX(5px);
+}
+
+.mega-menu-subcategory-link:hover::before {
+    opacity: 1;
+    background-color: #ffffff;
+    width: 8px;
+    height: 8px;
+    left: 12px;
+}
+
+/* Category with Subcategories - Dropdown Style */
+.nav-item-category {
+    position: relative;
+}
+
+.nav-item-category .nav-link {
+    position: relative;
+}
+
+.nav-item-category:hover .nav-link {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Category Dropdown (for categories with subcategories) - Simple List Style */
+.category-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 250px;
+    max-width: 350px;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border-top: 3px solid #c42525 !important;
+    border-radius: 0 0 8px 8px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 10000;
+    padding: 0;
+    margin: 0;
+    pointer-events: none;
+    /* Ensure solid white background - no transparency */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    /* Force complete opacity when visible */
+    mix-blend-mode: normal !important;
+}
+
+.nav-item-category:hover .category-dropdown {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0);
+    pointer-events: auto;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    /* Ensure complete opacity - no transparency */
+    mix-blend-mode: normal !important;
+}
+
+/* Simple List Style for Category Dropdown */
+.category-dropdown-list {
+    list-style: none;
+    margin: 0;
+    padding: 15px 0;
+    width: 100%;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+}
+
+.category-dropdown-item {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+}
+
+.category-dropdown-link {
+    display: block;
+    padding: 12px 25px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333333 !important;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    font-family: "Inter", sans-serif;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    width: 100%;
+    line-height: 1.5;
+    text-transform: uppercase;
+}
+
+.category-dropdown-link:hover {
+    color: #c42525 !important;
+    background-color: #f8f8f8 !important;
+    background: #f8f8f8 !important;
+    font-weight: 600;
+}
+
+/* Active/Selected state */
+.category-dropdown-link.active {
+    color: #c42525 !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 991px) {
+    .header-nav {
+        display: none;
+    }
+}
+
+/* Smooth Scrollbar for Mega Menu */
+.mega-menu-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.mega-menu-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.mega-menu-content::-webkit-scrollbar-thumb {
+    background: #c42525;
+    border-radius: 3px;
+}
+
+.mega-menu-content::-webkit-scrollbar-thumb:hover {
+    background: #a01e1e;
+}
+
+/* Animation for dropdown items */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mega-menu-category {
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+.mega-menu-subcategory-item {
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+/* Ensure navbar doesn't clip dropdowns */
+.header-nav {
+    overflow: visible !important;
+}
+
+.header-nav-inner {
+    overflow: visible !important;
+}
+
+.container-wapper {
+    overflow: visible !important;
+}
+
+.professional-nav {
+    overflow: visible !important;
+}
+
+/* Force white background on all dropdown elements - override any other styles */
+.category-dropdown,
+.category-dropdown *,
+.mega-menu,
+.mega-menu *,
+.mega-menu-content,
+.mega-menu-content *,
+.mega-menu-column,
+.mega-menu-column *,
+.mega-menu-category,
+.mega-menu-category *,
+.mega-menu-subcategories,
+.mega-menu-subcategories *,
+.category-dropdown-list,
+.category-dropdown-list * {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+}
+
+/* Ensure text is always dark and readable */
+.category-dropdown *,
+.category-dropdown-link,
+.category-dropdown-item {
+    color: #333333 !important;
+}
+
+/* Exception: hover states can have different background */
+.category-dropdown-link:hover {
+    color: #c42525 !important;
+    background-color: #f8f8f8 !important;
+    background: #f8f8f8 !important;
+}
+
+.mega-menu-subcategory-link:hover {
+    background-color: #c42525 !important;
+    color: #ffffff !important;
+}
+

@@ -943,12 +943,26 @@ async function loadDepartments() {
         const footerDepartments = document.getElementById('footerDepartments');
 
         if (menu) {
-            menu.innerHTML = departments.map(dept => {
-                const deptId = dept._id || dept.id;
-                return `
-                <li><a class="dropdown-item" href="/department/${deptId}">${htmlEscape(dept.name)}</a></li>
+            // New professional mega menu structure
+            menu.innerHTML = `
+                <div class="mega-menu-content">
+                    ${departments.map(dept => {
+                        const deptId = dept._id || dept.id;
+                        return `
+                        <div class="mega-menu-column">
+                            <div class="mega-menu-category">
+                                <h3 class="mega-menu-category-title">
+                                    <a href="/department/${deptId}">${htmlEscape(dept.name)}</a>
+                                </h3>
+                                <ul class="mega-menu-subcategories">
+                                    <!-- Subcategories will be loaded here if available -->
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                    }).join('')}
+                </div>
             `;
-            }).join('');
 
             const msg = `✓ Loaded ${departments.length} departments into navbar`;
             if (typeof window.Logger !== 'undefined') {
@@ -1019,9 +1033,10 @@ async function loadCategoriesForNavbar() {
             return;
         }
         
-        // Get the main menu container
+        // Get the main menu container (new professional navbar structure)
         const mainMenu = document.getElementById('menu-main-menu');
         if (!mainMenu) {
+            console.warn('Navbar menu container not found');
             categoriesLoading = false;
             return;
         }
@@ -1053,35 +1068,23 @@ async function loadCategoriesForNavbar() {
         console.log(`Loaded ${activeCategories.length} categories from database (excluding Sale):`, 
             activeCategories.map(c => c.name));
         
-        // Clear existing category menu items (keep only static items: Sale, Shop, Blog)
+        // Clear existing category menu items (keep only static items: Sale)
         // Find and preserve static items before clearing
         const staticItems = [];
         
-        // Find Sale link (first item or by href)
-        const saleItem = mainMenu.querySelector('a[href="/products.html?filter=discounted"]')?.closest('.menu-item') || 
-                        mainMenu.querySelector('.menu-item:first-child');
+        // Find Sale link (new structure uses .nav-item)
+        const saleItem = mainMenu.querySelector('a[href="/products.html?filter=discounted"]')?.closest('.nav-item') || 
+                        mainMenu.querySelector('.nav-item:first-child');
         
-        // Find Shop dropdown
-        const shopItem = mainMenu.querySelector('#departmentsDropdown')?.closest('.menu-item');
-        
-        // Find Blog link
-        const blogItem = mainMenu.querySelector('a[href="/blog.html"]')?.closest('.menu-item');
-        
-        // Store static items (only if they exist and are not dynamically added categories)
+        // Store static items (only Sale - Shop and Blog removed)
         if (saleItem && saleItem.querySelector('a[href="/products.html?filter=discounted"]')) {
             staticItems.push(saleItem);
-        }
-        if (shopItem) {
-            staticItems.push(shopItem);
-        }
-        if (blogItem) {
-            staticItems.push(blogItem);
         }
         
         // Clear ALL menu items (including any old/dynamic categories)
         mainMenu.innerHTML = '';
         
-        // Restore only static items
+        // Restore only static items (Sale only)
         staticItems.forEach(item => {
             // Clone the item to avoid any references to removed elements
             const clonedItem = item.cloneNode(true);
@@ -1101,14 +1104,26 @@ async function loadCategoriesForNavbar() {
                 subcategories.forEach(subcat => {
                     // Handle both populated object and ObjectId string
                     let catId = null;
+                    
+                    // Try multiple ways to extract category ID
                     if (subcat.category) {
+                        // Case 1: Populated object with _id
                         if (typeof subcat.category === 'object' && subcat.category._id) {
                             catId = subcat.category._id.toString();
-                        } else if (typeof subcat.category === 'string') {
+                        }
+                        // Case 2: String ID
+                        else if (typeof subcat.category === 'string') {
                             catId = subcat.category;
-                        } else if (subcat.category._id) {
+                        }
+                        // Case 3: Object with _id property (nested)
+                        else if (subcat.category._id) {
                             catId = subcat.category._id.toString();
                         }
+                    }
+                    
+                    // Also check if category is stored directly as an ID field
+                    if (!catId && subcat.categoryId) {
+                        catId = subcat.categoryId.toString();
                     }
                     
                     if (catId) {
@@ -1118,15 +1133,20 @@ async function loadCategoriesForNavbar() {
                             subcategoriesMap.set(catIdStr, []);
                         }
                         subcategoriesMap.get(catIdStr).push(subcat);
-                        console.log(`Mapped subcategory "${subcat.name}" to category ID: ${catIdStr}`);
+                        console.log(`✓ Mapped subcategory "${subcat.name}" (ID: ${subcat._id || subcat.id}) to category ID: ${catIdStr}`);
                     } else {
-                        console.warn('Subcategory missing category ID:', subcat);
+                        console.warn('⚠ Subcategory missing category ID:', {
+                            subcategoryName: subcat.name,
+                            subcategoryId: subcat._id || subcat.id,
+                            categoryField: subcat.category,
+                            fullSubcategory: subcat
+                        });
                     }
                 });
             }
             
-            console.log('Subcategories map:', Array.from(subcategoriesMap.entries()).map(([id, subs]) => 
-                `Category ${id}: ${subs.map(s => s.name).join(', ')}`
+            console.log('📋 Subcategories map summary:', Array.from(subcategoriesMap.entries()).map(([id, subs]) => 
+                `Category ${id}: ${subs.length} subcategories (${subs.map(s => s.name).join(', ')})`
             ));
             
             // Find the "11.11 Sale" category to check for subcategories
@@ -1139,76 +1159,66 @@ async function loadCategoriesForNavbar() {
                 saleCategoryId = saleCategory._id || saleCategory.id;
                 saleCategorySubcategories = subcategoriesMap.get(saleCategoryId) || [];
                 
-                // If "11.11 Sale" category has subcategories, add dropdown to static link
+                // If "11.11 Sale" category has subcategories, add dropdown to static link (new structure)
                 if (saleCategorySubcategories.length > 0) {
-                    const saleLink = mainMenu.querySelector('.menu-item:first-child a');
+                    const saleLink = mainMenu.querySelector('.nav-item:first-child .nav-link');
                     if (saleLink) {
                         // Convert static link to dropdown (but keep it clickable)
-                        const saleMenuItem = saleLink.closest('.menu-item');
+                        const saleMenuItem = saleLink.closest('.nav-item');
                         if (saleMenuItem) {
-                            saleMenuItem.className = 'menu-item type_dropdown has-children';
-                            saleLink.className = 'cms-item-title dropdown-toggle';
+                            saleMenuItem.className = 'nav-item nav-item-category';
+                            saleLink.className = 'nav-link nav-link-dropdown';
                             // Update href to point to category page instead of products filter
                             saleLink.href = `/category/${saleCategoryId}`;
-                            // Remove any Bootstrap data attributes that might block clicks
-                            saleLink.removeAttribute('data-bs-toggle');
-                            saleLink.setAttribute('aria-expanded', 'false');
                             
-                            // Add dropdown icon
-                            if (!saleLink.querySelector('.icon-dropdown')) {
-                                const dropdownIcon = document.createElement('span');
-                                dropdownIcon.className = 'icon-dropdown';
-                                dropdownIcon.innerHTML = '<i class="icon-angle-down"></i>';
+                            // Add dropdown arrow icon
+                            if (!saleLink.querySelector('.nav-arrow')) {
+                                const dropdownIcon = document.createElement('i');
+                                dropdownIcon.className = 'fas fa-chevron-down nav-arrow';
                                 saleLink.appendChild(dropdownIcon);
                             }
                             
-                            // Create dropdown menu
-                            let dropdownMenu = saleMenuItem.querySelector('.dropdown-menu');
+                            // Create dropdown menu (new professional style)
+                            let dropdownMenu = saleMenuItem.querySelector('.category-dropdown');
                             if (!dropdownMenu) {
-                                dropdownMenu = document.createElement('ul');
-                                dropdownMenu.className = 'dropdown-menu sub-menu';
+                                dropdownMenu = document.createElement('div');
+                                dropdownMenu.className = 'category-dropdown';
                                 dropdownMenu.setAttribute('aria-labelledby', `category-${saleCategoryId}`);
                                 saleMenuItem.appendChild(dropdownMenu);
                             }
                             
                             // Clear and populate dropdown
                             dropdownMenu.innerHTML = '';
+                            const dropdownList = document.createElement('ul');
+                            dropdownList.className = 'category-dropdown-list';
+                            
                             saleCategorySubcategories
                                 .sort((a, b) => (a.ordering || 0) - (b.ordering || 0) || a.name.localeCompare(b.name))
                                 .forEach(subcat => {
                                     const subcatId = subcat._id || subcat.id;
                                     const subcatName = subcat.name || 'Unnamed Subcategory';
                                     const subcatItem = document.createElement('li');
+                                    subcatItem.className = 'category-dropdown-item';
                                     const subcatLink = document.createElement('a');
                                     subcatLink.href = `/subcategory/${subcatId}`;
-                                    subcatLink.className = 'dropdown-item';
+                                    subcatLink.className = 'category-dropdown-link';
                                     subcatLink.textContent = subcatName;
                                     subcatItem.appendChild(subcatLink);
-                                    dropdownMenu.appendChild(subcatItem);
+                                    dropdownList.appendChild(subcatItem);
                                 });
                             
-                            // Ensure the link is clickable - prevent Bootstrap from blocking it
-                            saleLink.addEventListener('click', function(e) {
-                                // Only prevent default if clicking on the dropdown icon
-                                const icon = saleLink.querySelector('.icon-dropdown');
-                                if (icon && (e.target === icon || icon.contains(e.target))) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    return false;
-                                }
-                                // Otherwise, allow navigation to category page
-                            }, true);
+                            dropdownMenu.appendChild(dropdownList);
                         }
                     } else {
                         // If no subcategories, just update the href to point to category page
-                        const saleLinkNoSub = mainMenu.querySelector('.menu-item:first-child a');
+                        const saleLinkNoSub = mainMenu.querySelector('.nav-item:first-child .nav-link');
                         if (saleLinkNoSub && saleCategory) {
                             saleLinkNoSub.href = `/category/${saleCategoryId}`;
                         }
                     }
                 } else if (saleCategory) {
                     // If "11.11 Sale" category exists but has no subcategories, update href to category page
-                    const saleLinkNoSub = mainMenu.querySelector('.menu-item:first-child a');
+                    const saleLinkNoSub = mainMenu.querySelector('.nav-item:first-child .nav-link');
                     if (saleLinkNoSub) {
                         saleLinkNoSub.href = `/category/${saleCategoryId}`;
                     }
@@ -1240,54 +1250,85 @@ async function loadCategoriesForNavbar() {
             addedCategoryIds.add(catId);
             
             const catName = category.name || 'Unnamed Category';
-            // Ensure we're comparing string IDs
+            // Ensure we're comparing string IDs - try multiple formats
             const catIdStr = catId.toString();
-            const subcategories = subcategoriesMap.get(catIdStr) || [];
+            let subcategories = subcategoriesMap.get(catIdStr) || [];
+            
+            // If no subcategories found, try with different ID format (ObjectId vs string)
+            if (subcategories.length === 0) {
+                // Try to find by matching all possible ID formats
+                for (const [mapId, subs] of subcategoriesMap.entries()) {
+                    // Compare as strings
+                    if (mapId.toString() === catIdStr || mapId === catIdStr) {
+                        subcategories = subs;
+                        console.log(`✓ Found subcategories for "${catName}" using alternative ID match: ${mapId}`);
+                        break;
+                    }
+                }
+            }
+            
             const hasSubcategories = subcategories.length > 0;
             
             if (hasSubcategories) {
-                console.log(`Category "${catName}" (ID: ${catIdStr}) has ${subcategories.length} subcategories:`, 
+                console.log(`✓ Category "${catName}" (ID: ${catIdStr}) has ${subcategories.length} subcategories:`, 
                     subcategories.map(s => s.name));
+            } else {
+                console.log(`⊘ Category "${catName}" (ID: ${catIdStr}) has no subcategories`);
             }
             
-            // Create menu item
+            // Create menu item (new professional navbar structure)
             const menuItem = document.createElement('li');
-            menuItem.className = hasSubcategories ? 'menu-item type_dropdown has-children' : 'menu-item';
+            menuItem.className = hasSubcategories ? 'nav-item nav-item-category' : 'nav-item';
             
             // Create link
             const link = document.createElement('a');
             link.href = `/category/${catId}`;
-            link.className = hasSubcategories ? 'cms-item-title nav-category-link dropdown-toggle' : 'cms-item-title nav-category-link';
+            link.className = hasSubcategories ? 'nav-link nav-link-dropdown' : 'nav-link';
             link.setAttribute('data-category-key', catName.toLowerCase().replace(/\s+/g, '-'));
             link.textContent = catName;
             
             if (hasSubcategories) {
-                // Don't use data-bs-toggle to prevent Bootstrap from blocking clicks
-                // We'll use CSS hover for dropdown, but allow clicking to go to category page
-                link.setAttribute('aria-expanded', 'false');
-                const dropdownIcon = document.createElement('span');
-                dropdownIcon.className = 'icon-dropdown';
-                dropdownIcon.innerHTML = '<i class="icon-angle-down"></i>';
+                // Add dropdown arrow icon
+                const dropdownIcon = document.createElement('i');
+                dropdownIcon.className = 'fas fa-chevron-down nav-arrow';
                 link.appendChild(dropdownIcon);
                 
-                // Create dropdown menu
-                const dropdownMenu = document.createElement('ul');
-                dropdownMenu.className = 'dropdown-menu sub-menu';
+                // Create simple list dropdown (like the reference image)
+                const dropdownMenu = document.createElement('div');
+                dropdownMenu.className = 'category-dropdown';
                 dropdownMenu.setAttribute('aria-labelledby', `category-${catId}`);
                 
-                subcategories
-                    .sort((a, b) => (a.ordering || 0) - (b.ordering || 0) || a.name.localeCompare(b.name))
-                    .forEach(subcat => {
-                        const subcatId = subcat._id || subcat.id;
-                        const subcatName = subcat.name || 'Unnamed Subcategory';
-                        const subcatItem = document.createElement('li');
-                        const subcatLink = document.createElement('a');
-                        subcatLink.href = `/subcategory/${subcatId}`;
-                        subcatLink.className = 'dropdown-item';
-                        subcatLink.textContent = subcatName;
-                        subcatItem.appendChild(subcatLink);
-                        dropdownMenu.appendChild(subcatItem);
-                    });
+                // Create simple list
+                const dropdownList = document.createElement('ul');
+                dropdownList.className = 'category-dropdown-list';
+                
+                // Sort subcategories
+                const subcategoriesSorted = subcategories.sort((a, b) => 
+                    (a.ordering || 0) - (b.ordering || 0) || a.name.localeCompare(b.name)
+                );
+                
+                // Add each subcategory as a list item
+                subcategoriesSorted.forEach(subcat => {
+                    const subcatId = subcat._id || subcat.id;
+                    const subcatName = subcat.name || 'Unnamed Subcategory';
+                    const subcatItem = document.createElement('li');
+                    subcatItem.className = 'category-dropdown-item';
+                    const subcatLink = document.createElement('a');
+                    subcatLink.href = `/subcategory/${subcatId}`;
+                    subcatLink.className = 'category-dropdown-link';
+                    subcatLink.textContent = subcatName.toUpperCase();
+                    subcatItem.appendChild(subcatLink);
+                    dropdownList.appendChild(subcatItem);
+                });
+                
+                dropdownMenu.appendChild(dropdownList);
+                
+                // Verify dropdown was created with items
+                if (subcategoriesSorted.length > 0) {
+                    console.log(`✓ Created dropdown menu for "${catName}" with ${subcategoriesSorted.length} subcategories`);
+                } else {
+                    console.warn(`⚠ Dropdown menu for "${catName}" is empty!`);
+                }
                 
                 menuItem.appendChild(link);
                 menuItem.appendChild(dropdownMenu);
@@ -1301,20 +1342,20 @@ async function loadCategoriesForNavbar() {
         // Re-initialize category links after adding them
         await initialiseCategoryNavLinks();
         
-        // Prevent Bootstrap from blocking clicks on dropdown toggles
         // Allow category links to be clickable even when they have dropdowns
-        const dropdownToggles = mainMenu.querySelectorAll('.dropdown-toggle');
-        dropdownToggles.forEach(toggle => {
-            // Remove Bootstrap's click handler that prevents navigation
-            toggle.addEventListener('click', function(e) {
-                // Only prevent default if clicking on the dropdown icon, not the link itself
-                const icon = toggle.querySelector('.icon-dropdown');
-                if (icon && e.target === icon || icon?.contains(e.target)) {
+        // In the new professional navbar, links are always clickable and dropdowns show on hover
+        const dropdownLinks = mainMenu.querySelectorAll('.nav-link-dropdown');
+        dropdownLinks.forEach(link => {
+            // Links are clickable - dropdowns show on hover via CSS
+            link.addEventListener('click', function(e) {
+                // Only prevent default if clicking on the dropdown arrow icon
+                const arrow = link.querySelector('.nav-arrow');
+                if (arrow && (e.target === arrow || arrow.contains(e.target))) {
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
-                // Otherwise, allow the link to work normally
+                // Otherwise, allow navigation to category page
             }, true);
         });
         

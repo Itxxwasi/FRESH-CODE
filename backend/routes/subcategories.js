@@ -57,10 +57,35 @@ router.get('/', async (req, res) => {
         const subcategories = await Subcategory.find(query)
             .populate('category', 'name _id')
             .populate('imageUpload')
-            .sort({ ordering: 1, name: 1 });
+            .sort({ ordering: 1, name: 1 })
+            .lean(); // Use lean() to get plain JavaScript objects
+        
+        // Ensure category field is properly populated
+        const formattedSubcategories = subcategories.map(subcat => {
+            // Ensure category ID is accessible in multiple formats
+            const categoryId = subcat.category?._id || subcat.category || subcat.categoryId;
+            return {
+                ...subcat,
+                category: subcat.category ? {
+                    _id: subcat.category._id || subcat.category,
+                    name: subcat.category.name || ''
+                } : null,
+                // Also include categoryId as a direct field for easier access
+                categoryId: categoryId ? (categoryId.toString ? categoryId.toString() : categoryId) : null
+            };
+        });
+        
+        // Disable caching in development
+        if (process.env.NODE_ENV !== 'production') {
+            res.set({
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
+        }
         
         // Always return an array, even if empty
-        res.json(Array.isArray(subcategories) ? subcategories : []);
+        res.json(Array.isArray(formattedSubcategories) ? formattedSubcategories : []);
     } catch (err) {
         console.error('Error fetching subcategories:', err);
         res.status(500).json({ message: err.message });

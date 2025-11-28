@@ -257,14 +257,19 @@ async function renderSection(section, index, allSections, container) {
     // Special handling for scrolling text - only the FIRST one (lowest ordering) goes at top before header
     // Other scrolling text sections should render in their normal position in the container
     if (section.type === 'scrollingText') {
-        console.log(`[renderSection] Processing scrolling text section "${section.name}" at index ${index}`);
+        console.log(`[renderSection] Processing scrolling text section "${section.name}" at index ${index}, ordering: ${section.ordering}`);
         const renderer = HOMEPAGE_SECTION_RENDERERS[section.type];
         if (renderer) {
             try {
                 // Check if this is the first scrolling text section (lowest ordering)
-                const firstScrollingTextIndex = allSections.findIndex(s => s.type === 'scrollingText');
-                const isFirstScrollingText = index === firstScrollingTextIndex;
-                console.log(`[renderSection] First scrolling text index: ${firstScrollingTextIndex}, current index: ${index}, isFirst: ${isFirstScrollingText}`);
+                // Find all scrolling text sections and get the one with the lowest ordering
+                const scrollingTextSections = allSections.filter(s => s.type === 'scrollingText');
+                const firstScrollingText = scrollingTextSections.reduce((prev, curr) => 
+                    (prev.ordering || 0) <= (curr.ordering || 0) ? prev : curr
+                );
+                const isFirstScrollingText = section._id === firstScrollingText._id || 
+                                           (section.ordering || 0) === (firstScrollingText.ordering || 0);
+                console.log(`[renderSection] First scrolling text: "${firstScrollingText.name}" (ordering: ${firstScrollingText.ordering}), current: "${section.name}" (ordering: ${section.ordering}), isFirst: ${isFirstScrollingText}`);
                 
                 const sectionElement = await renderer(section, index);
                 
