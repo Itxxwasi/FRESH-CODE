@@ -893,12 +893,16 @@ function loadCategories() {
             categories.forEach(function(cat) {
                 const imageUrl = resolveItemImage(cat) || IMAGE_PLACEHOLDER;
                 const departmentName = cat.department ? cat.department.name : 'N/A';
+                const sequenceNo = cat.ordering !== undefined ? cat.ordering : 0;
                 html += `
                     <tr>
                         <td>${cat.name}</td>
                         <td>${departmentName}</td>
                         <td>${cat.description || ''}</td>
                         <td><img src="${imageUrl}" alt="${cat.name}" class="table-thumb"></td>
+                        <td>
+                            <span class="badge bg-info">${sequenceNo}</span>
+                        </td>
                         <td>
                             <span class="badge ${cat.isFeatured ? 'bg-primary' : 'bg-secondary'}">
                                 ${cat.isFeatured ? 'Featured' : 'Regular'}
@@ -2347,6 +2351,7 @@ async function saveCategory() {
             name: name,
             department: department,
             description: description,
+            ordering: parseInt($('#categoryOrdering').val() || '0', 10) || 0,
             isFeatured: $('#categoryFeatured').is(':checked'),
             isActive: $('#categoryActive').is(':checked')
         };
@@ -3167,6 +3172,7 @@ async function editCategory(id) {
         $('#categoryDescription').val(cat.description || '');
         $('#categoryImage').val(cat.image || '');
         $('#categoryImageFileId').val(cat.imageUpload ? cat.imageUpload._id : '');
+        $('#categoryOrdering').val(cat.ordering !== undefined ? cat.ordering : 0);
         $('#categoryFeatured').prop('checked', cat.isFeatured);
         $('#categoryActive').prop('checked', cat.isActive);
         setImagePreview('#categoryImagePreview', resolveItemImage(cat));
@@ -4233,6 +4239,25 @@ function loadHomepageSectionConfig(sectionType) {
             `;
             break;
             
+        case 'categoryCircles':
+            configHtml = `
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <strong>Category Circles Configuration</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Select Categories to Display (will be loaded from Categories section)</label>
+                            <div id="categoryList" class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                <p class="text-muted">Categories will be listed here after section is created</p>
+                            </div>
+                            <div class="form-text">Select the categories you want to display in the circles section. If none selected, featured categories will be shown.</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            break;
+            
         case 'departmentGrid':
             configHtml = `
                 <div class="card border-info">
@@ -4483,10 +4508,10 @@ function loadHomepageSectionConfig(sectionType) {
     if (sectionType === 'heroSlider') {
         loadSlidersForConfig();
     }
-    if (sectionType === 'categoryFeatured' || sectionType === 'categoryGrid') {
+    if (sectionType === 'categoryFeatured' || sectionType === 'categoryGrid' || sectionType === 'categoryCircles') {
         loadCategoriesListForConfig();
     }
-    if (sectionType === 'categoryFeatured' || sectionType === 'categoryGrid' || sectionType === 'productTabs' || sectionType === 'productCarousel') {
+    if (sectionType === 'categoryFeatured' || sectionType === 'categoryGrid' || sectionType === 'categoryCircles' || sectionType === 'productTabs' || sectionType === 'productCarousel') {
         loadCategoriesForConfig();
     }
     if (sectionType === 'bannerFullWidth') {
@@ -4834,6 +4859,15 @@ function buildHomepageSectionConfig(sectionType) {
             config.showTitle = $('#configShowTitle').is(':checked');
             break;
             
+        case 'categoryCircles':
+            const categoryCircleIds = [];
+            $('input[name="categoryIds"]:checked').each(function() {
+                categoryCircleIds.push($(this).val());
+            });
+            config.categoryIds = categoryCircleIds;
+            config.showTitle = $('#configShowTitle')?.is(':checked') !== undefined ? $('#configShowTitle').is(':checked') : true;
+            break;
+            
         case 'departmentGrid':
             const departmentIds = [];
             $('input[name="departmentIds"]:checked').each(function() {
@@ -4997,6 +5031,17 @@ function populateHomepageSectionConfig(sectionType, config) {
             }
             if (config.gridColumns) $('#configGridColumns').val(config.gridColumns);
             if (config.showTitle !== undefined) $('#configShowTitle').prop('checked', config.showTitle);
+            break;
+            
+        case 'categoryCircles':
+            if (config.categoryIds) {
+                config.categoryIds.forEach(id => {
+                    $(`#category_${id}`).prop('checked', true);
+                });
+            }
+            if (config.showTitle !== undefined && $('#configShowTitle').length) {
+                $('#configShowTitle').prop('checked', config.showTitle);
+            }
             break;
             
         case 'departmentGrid':

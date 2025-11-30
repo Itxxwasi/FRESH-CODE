@@ -66,7 +66,10 @@ router.get('/departments', adminAuth, async (req, res) => {
 // Get all categories (admin)
 router.get('/categories', adminAuth, async (req, res) => {
     try {
-        const categories = await Category.find().populate('department', 'name').populate('imageUpload');
+        const categories = await Category.find()
+            .populate('department', 'name')
+            .populate('imageUpload')
+            .sort({ ordering: 1, name: 1 });
         res.json(categories);
     } catch (err) {
         res.status(500).json({ message: err.message });

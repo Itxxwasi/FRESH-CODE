@@ -125,8 +125,7 @@ async function loadAndRenderHomepageSections() {
         // Sort by ordering
         sections.sort((a, b) => (a.ordering || 0) - (b.ordering || 0));
         
-        // Remove all categoryCircles sections - they are duplicates of category sections shown earlier
-        sections = sections.filter(section => section.type !== 'categoryCircles');
+        // Keep all sections including categoryCircles
         
         if (typeof window.Logger !== 'undefined') {
             window.Logger.info(`Found ${sections.length} homepage sections`, { count: sections.length });
@@ -780,10 +779,10 @@ async function renderCategoryCircles(section, index) {
         const sectionHtml = `
             <section class="category-circles homepage-section" data-section-type="categoryCircles" data-section-id="${section._id}">
                 <div class="container py-5">
-                    ${section.title ? `
-                        <div class="section-header text-center mb-4">
-                            <h2>${htmlEscape(section.title)}</h2>
-                            ${section.subtitle ? `<p class="text-muted">${htmlEscape(section.subtitle)}</p>` : ''}
+                    ${section.title || section.subtitle ? `
+                        <div class="section-header text-center">
+                            ${section.title ? `<h2>${htmlEscape(section.title)}</h2>` : ''}
+                            ${section.subtitle ? `<p>${htmlEscape(section.subtitle)}</p>` : ''}
                         </div>
                     ` : ''}
                     <div class="category-circles__grid">

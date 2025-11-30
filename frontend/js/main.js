@@ -1061,6 +1061,13 @@ async function loadCategoriesForNavbar() {
                 return !isSaleCategory;
             })
             .sort((a, b) => {
+                // Sort by ordering first (lower numbers first), then by name
+                const orderingA = a.ordering !== undefined ? a.ordering : 0;
+                const orderingB = b.ordering !== undefined ? b.ordering : 0;
+                if (orderingA !== orderingB) {
+                    return orderingA - orderingB;
+                }
+                // If ordering is the same, sort by name
                 const nameA = (a.name || '').toLowerCase();
                 const nameB = (b.name || '').toLowerCase();
                 return nameA.localeCompare(nameB);

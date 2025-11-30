@@ -51,7 +51,8 @@ router.get('/', async (req, res) => {
     try {
         const categories = await Category.find({ isActive: true })
             .populate('department', 'name')
-            .populate('imageUpload');
+            .populate('imageUpload')
+            .sort({ ordering: 1, name: 1 });
         res.json(categories);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -63,7 +64,8 @@ router.get('/featured', async (req, res) => {
     try {
         const categories = await Category.find({ isActive: true, isFeatured: true })
             .populate('department', 'name')
-            .populate('imageUpload');
+            .populate('imageUpload')
+            .sort({ ordering: 1, name: 1 });
         res.json(categories);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -78,7 +80,8 @@ router.get('/department/:departmentId', async (req, res) => {
             isActive: true
         })
             .populate('department', 'name')
-            .populate('imageUpload');
+            .populate('imageUpload')
+            .sort({ ordering: 1, name: 1 });
         res.json(categories);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -126,6 +129,7 @@ router.post('/', adminAuth, async (req, res) => {
             description: req.body.description.trim(),
             image: req.body.image,
             department: req.body.department,
+            ordering: req.body.ordering !== undefined ? parseInt(req.body.ordering, 10) || 0 : 0,
             isFeatured: req.body.isFeatured || false,
             isActive: req.body.isActive !== undefined ? req.body.isActive : true
         });
@@ -176,6 +180,9 @@ router.put('/:id', adminAuth, async (req, res) => {
         if (req.body.description !== undefined) {
             category.description = req.body.description.trim();
         }
+        if (req.body.ordering !== undefined) {
+            category.ordering = parseInt(req.body.ordering, 10) || 0;
+        }
         category.isActive = req.body.isActive !== undefined ? req.body.isActive : category.isActive;
         category.isFeatured = req.body.isFeatured !== undefined ? req.body.isFeatured : category.isFeatured;
 
@@ -194,7 +201,7 @@ router.put('/:id', adminAuth, async (req, res) => {
     }
 });
 
-// Delete a category (admin only)
+// Delete a category (admin only) - Hard delete (remove from database)
 router.delete('/:id', adminAuth, async (req, res) => {
     try {
         const category = await Category.findById(req.params.id);
@@ -202,9 +209,9 @@ router.delete('/:id', adminAuth, async (req, res) => {
             return res.status(404).json({ message: 'Category not found' });
         }
 
-        category.isActive = false;
-        await category.save();
-        res.json({ message: 'Category deleted' });
+        // Hard delete - remove from database
+        await Category.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Category deleted successfully' });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

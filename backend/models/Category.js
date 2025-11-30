@@ -35,10 +35,18 @@ const CategorySchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    ordering: {
+        type: Number,
+        default: 0
+    },
     createdAt: {
         type: Date,
         default: Date.now
     }
 });
+
+// Index for efficient queries
+CategorySchema.index({ ordering: 1 });
+CategorySchema.index({ department: 1, isActive: 1 });
 
 module.exports = mongoose.model('Category', CategorySchema);
