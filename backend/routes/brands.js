@@ -13,7 +13,15 @@ async function assignImageFields(target, body) {
         }
 
         const fileId = body.imageFileId;
-        if (fileId && fileId !== 'null' && fileId !== 'undefined' && fileId !== '') {
+        // Validate that fileId is a valid MongoDB ObjectId before using it
+        const mongoose = require('mongoose');
+        const isValidObjectId = fileId && 
+                                fileId !== 'null' && 
+                                fileId !== 'undefined' && 
+                                fileId !== '' &&
+                                mongoose.Types.ObjectId.isValid(fileId);
+        
+        if (isValidObjectId) {
             try {
                 const media = await Media.findById(fileId);
                 if (!media) {
@@ -33,7 +41,8 @@ async function assignImageFields(target, body) {
                 error.statusCode = 400;
                 throw error;
             }
-        } else if (fileId === '' || fileId === null || fileId === 'null' || fileId === 'undefined') {
+        } else if (fileId === '' || fileId === null || fileId === 'null' || fileId === 'undefined' || !isValidObjectId) {
+            // Clear imageUpload if fileId is empty or invalid
             target.imageUpload = undefined;
         }
     } catch (err) {
@@ -81,6 +90,34 @@ router.get('/', adminAuth, async (req, res) => {
     }
 });
 
+// Get brand with products (public) - must be before /:id
+router.get('/:id/products', async (req, res) => {
+    try {
+        const brand = await Brand.findById(req.params.id)
+            .populate('imageUpload', 'url');
+        
+        if (!brand || !brand.isActive) {
+            return res.status(404).json({ message: 'Brand not found' });
+        }
+
+        const Product = require('../models/Product');
+        const products = await Product.find({ 
+            brand: req.params.id,
+            isActive: true 
+        })
+        .populate('imageUpload', 'url')
+        .populate('category', 'name')
+        .populate('department', 'name')
+        .sort({ createdAt: -1 })
+        .lean();
+
+        res.json({ brand, products });
+    } catch (error) {
+        console.error('Error fetching brand products:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Get all active brands (public)
 // IMPORTANT: This route must be defined BEFORE /:id to avoid route conflicts
 router.get('/public', async (req, res) => {
@@ -90,7 +127,7 @@ router.get('/public', async (req, res) => {
         const brands = await Brand.find({ isActive: true })
             .populate('imageUpload', 'url')
             .sort({ order: 1, createdAt: -1 })
-            .select('name image alt link order');
+            .select('name image alt link order discount discountText');
         
         console.log(`   Found ${brands.length} active brands in database`);
         
@@ -161,7 +198,7 @@ router.get('/:id', adminAuth, async (req, res) => {
 router.post('/', adminAuth, async (req, res) => {
     try {
         // Validation
-        const { name, image, imageFileId, alt, link, order, isActive } = req.body;
+        const { name, image, imageFileId, alt, link, order, discount, discountText, isActive } = req.body;
 
         if (!name || !name.trim()) {
             return res.status(400).json({ message: 'Brand name is required' });
@@ -176,6 +213,8 @@ router.post('/', adminAuth, async (req, res) => {
             alt: alt ? alt.trim() : name.trim(),
             link: link ? link.trim() : undefined,
             order: order !== undefined ? parseInt(order, 10) : 0,
+            discount: discount !== undefined ? parseFloat(discount) : 0,
+            discountText: discountText ? discountText.trim() : '',
             isActive: isActive !== undefined ? isActive : true
         });
 
@@ -232,7 +271,7 @@ router.put('/:id', adminAuth, async (req, res) => {
         }
 
         // Validation
-        const { name, image, imageFileId, alt, link, order, isActive } = req.body;
+        const { name, image, imageFileId, alt, link, order, discount, discountText, isActive } = req.body;
 
         if (name !== undefined) {
             if (!name || !name.trim()) {
@@ -251,6 +290,14 @@ router.put('/:id', adminAuth, async (req, res) => {
 
         if (order !== undefined) {
             brand.order = parseInt(order, 10);
+        }
+
+        if (discount !== undefined) {
+            brand.discount = parseFloat(discount);
+        }
+
+        if (discountText !== undefined) {
+            brand.discountText = discountText ? discountText.trim() : '';
         }
 
         if (isActive !== undefined) {

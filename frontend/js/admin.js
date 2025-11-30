@@ -181,8 +181,26 @@
     $('#add-product-btn').click(function() {
         resetProductForm();
         loadDepartmentsToSelect('#productDepartment');
+        loadBrandsToSelect('#productBrand');
         $('#productModalTitle').text('Add Product');
         $('#productModal').modal('show');
+    });
+    
+    // Brand change handler - make department/category optional when brand is selected
+    $('#productBrand').change(function() {
+        const brandId = $(this).val();
+        if (brandId) {
+            // Brand selected - make department/category optional
+            $('#productDepartment').prop('required', false);
+            $('#productCategory').prop('required', false);
+            $('#productDepartment').val('');
+            $('#productCategory').html('<option value="">Select Department First</option>');
+            $('#productSubcategory').html('<option value="">Select Category First</option>');
+        } else {
+            // No brand - require department/category
+            $('#productDepartment').prop('required', true);
+            $('#productCategory').prop('required', true);
+        }
     });
     
     $('#saveProduct').click(function() {
@@ -243,6 +261,8 @@
         // Get other filters
         currentProductFilters.category = $('#filter-category').val() || '';
         currentProductFilters.department = $('#filter-department').val() || '';
+        currentProductFilters.subcategory = $('#filter-subcategory').val() || '';
+        currentProductFilters.brand = $('#filter-brand').val() || '';
         currentProductFilters.minPrice = $('#filter-min-price').val() || '';
         currentProductFilters.maxPrice = $('#filter-max-price').val() || '';
         currentProductFilters.minDiscount = $('#filter-min-discount').val() || '';
@@ -268,6 +288,8 @@
         currentProductFilters = {
             category: '',
             department: '',
+            subcategory: '',
+            brand: '',
             minPrice: '',
             maxPrice: '',
             minDiscount: '',
@@ -279,12 +301,35 @@
         $('#filter-type').val('');
         $('#filter-category').val('');
         $('#filter-department').val('');
+        $('#filter-subcategory').val('');
+        $('#filter-brand').val('');
         $('#filter-min-price').val('');
         $('#filter-max-price').val('');
         $('#filter-min-discount').val('');
         $('#filter-section').val('');
         
         loadProducts(1);
+    });
+    
+    // Load subcategories when category filter changes
+    $('#filter-category').change(function() {
+        const categoryId = $(this).val();
+        if (categoryId) {
+            loadSubcategoriesToSelect('#filter-subcategory', categoryId);
+        } else {
+            $('#filter-subcategory').html('<option value="">All Subcategories</option>');
+        }
+    });
+    
+    // Load categories when department filter changes
+    $('#filter-department').change(function() {
+        const departmentId = $(this).val();
+        if (departmentId) {
+            loadCategoriesToSelect('#filter-category', departmentId);
+        } else {
+            $('#filter-category').html('<option value="">All Categories</option>');
+            $('#filter-subcategory').html('<option value="">All Subcategories</option>');
+        }
     });
     
     // Slider handlers
@@ -302,11 +347,22 @@
     $('#add-banner-btn').click(function() {
         resetBannerForm();
         $('#bannerModalTitle').text('Add Banner');
+        loadBannerPositions(); // Load dynamic positions from homepage sections
         $('#bannerModal').modal('show');
     });
     
     $('#saveBanner').click(function() {
         saveBanner();
+    });
+    
+    // Show/hide custom dimensions based on size selection
+    $('#bannerSize').change(function() {
+        const sizeValue = $(this).val();
+        if (sizeValue === 'custom') {
+            $('#customBannerDimensions').slideDown();
+        } else {
+            $('#customBannerDimensions').slideUp();
+        }
     });
     
 // Video Banner handlers
@@ -585,6 +641,18 @@ $('#add-brand-btn').click(function() {
     $('#productDepartment').change(function() {
         const departmentId = $(this).val();
         loadCategoriesToSelect('#productCategory', departmentId);
+        // Clear subcategory when department changes
+        $('#productSubcategory').html('<option value="">Select Category First</option>');
+    });
+    
+    // Load subcategories when category changes
+    $('#productCategory').change(function() {
+        const categoryId = $(this).val();
+        if (categoryId) {
+            loadSubcategoriesToSelect('#productSubcategory', categoryId);
+        } else {
+            $('#productSubcategory').html('<option value="">Select Category First</option>');
+        }
     });
 
     // Setup image previews
@@ -711,6 +779,7 @@ function loadSectionData(sectionId) {
             loadProducts(1);
             loadFilterCategories();
             loadFilterDepartments();
+            loadFilterBrands();
             // Sections filter is static - no need to load
             break;
         case 'sliders-section':
@@ -965,6 +1034,8 @@ let currentProductSearch = '';
 let currentProductFilters = {
     category: '',
     department: '',
+    subcategory: '',
+    brand: '',
     minPrice: '',
     maxPrice: '',
     minDiscount: '',
@@ -998,6 +1069,30 @@ function loadFilterDepartments() {
         })
         .fail(function() {
             console.error('Error loading departments for filter');
+        });
+}
+
+// Load brands for filter dropdown
+function loadFilterBrands() {
+    $.ajax({
+        url: '/api/admin/brands',
+        method: 'GET',
+        headers: {
+            'x-auth-token': localStorage.getItem('token') || ''
+        }
+    })
+        .done(function(response) {
+            const brands = Array.isArray(response) ? response : (response.brands || response.data || []);
+            const select = $('#filter-brand');
+            select.html('<option value="">All Brands</option>');
+            brands.forEach(function(brand) {
+                if (brand.isActive !== false) {
+                    select.append(`<option value="${brand._id}">${brand.name}</option>`);
+                }
+            });
+        })
+        .fail(function() {
+            console.error('Error loading brands for filter');
         });
 }
 
@@ -1073,11 +1168,13 @@ function loadProducts(page = 1) {
             let html = '';
             
             if (!data.products || data.products.length === 0) {
-                html = '<tr><td colspan="11" class="text-center text-muted py-4">No products found. Try adjusting your filters.</td></tr>';
+                html = '<tr><td colspan="13" class="text-center text-muted py-4">No products found. Try adjusting your filters.</td></tr>';
             } else {
                 data.products.forEach(function(product) {
                 const departmentName = product.department ? product.department.name : 'N/A';
                 const categoryName = product.category ? product.category.name : 'N/A';
+                const subcategoryName = product.subcategory ? (product.subcategory.name || product.subcategory) : '-';
+                const brandName = product.brand ? (product.brand.name || product.brand) : '-';
                 // Show sections as badges
                 const sections = product.sections && Array.isArray(product.sections) ? product.sections : [];
                 const sectionsDisplay = sections.length > 0 
@@ -1094,6 +1191,8 @@ function loadProducts(page = 1) {
                         <td>${product.name}</td>
                         <td>${departmentName}</td>
                         <td>${categoryName}</td>
+                        <td>${subcategoryName}</td>
+                        <td>${brandName}</td>
                         <td>${sectionsDisplay}</td>
                         <td>Rs. ${finalPrice.toFixed(2)}</td>
                         <td>${product.discount}%</td>
@@ -1292,8 +1391,8 @@ function loadBanners() {
                 
                 html += `
                     <tr>
-                        <td>${banner.title}</td>
-                        <td>${banner.description}</td>
+                        <td>${banner.title || '<span class="text-muted fst-italic">No title</span>'}</td>
+                        <td>${banner.description || '<span class="text-muted fst-italic">No description</span>'}</td>
                         <td>${mediaElement}</td>
                         <td>${typeBadge}</td>
                         <td>${banner.position}</td>
@@ -1974,6 +2073,41 @@ function loadSubcategoriesToSelect(selectId, categoryId, options = {}) {
     );
 }
 
+function loadBrandsToSelect(selectId, options = {}) {
+    const { selectedId } = options;
+    
+    return $.ajax({
+        url: '/api/admin/brands',
+        method: 'GET',
+        headers: {
+            'x-auth-token': localStorage.getItem('token') || ''
+        }
+    }).then(
+        function(response) {
+            const brands = Array.isArray(response) ? response : (response.brands || response.data || []);
+            let html = '<option value="">No Brand</option>';
+            
+            brands.forEach(function(brand) {
+                if (brand.isActive !== false) {
+                    html += `<option value="${brand._id}">${brand.name}</option>`;
+                }
+            });
+            
+            $(selectId).html(html);
+            
+            if (selectedId) {
+                $(selectId).val(String(selectedId));
+            }
+            
+            return brands;
+        },
+        function() {
+            $(selectId).html('<option value="">Unable to load brands</option>');
+            return [];
+        }
+    );
+}
+
 function loadCategoriesToSelect(selectId, departmentId, options = {}) {
     const { selectedId } = options;
 
@@ -2065,6 +2199,12 @@ function resetProductForm() {
     setImagePreview('#productImagePreview', null);
     $('#productDepartment').html('<option value="">Select Department</option>');
     $('#productCategory').html('<option value="">Select Department First</option>');
+    $('#productSubcategory').html('<option value="">Select Category First</option>');
+    // Load brands
+    loadBrandsToSelect('#productBrand');
+    // Reset required attributes
+    $('#productDepartment').prop('required', true);
+    $('#productCategory').prop('required', true);
 }
 
 function resetSliderForm() {
@@ -2081,6 +2221,10 @@ function resetBannerForm() {
     $('#bannerId').val('');
     $('#bannerImageFile').val('');
     $('#bannerImageFileId').val('');
+    $('#bannerSize').val('medium');
+    $('#customBannerDimensions').hide();
+    $('#bannerCustomWidth').val('');
+    $('#bannerCustomHeight').val('');
     setImagePreview('#bannerImagePreview', null);
 }
 
@@ -2384,6 +2528,7 @@ async function saveProduct() {
         // Validate required fields
         const name = $('#productName').val()?.trim();
         const category = $('#productCategory').val();
+        const brand = $('#productBrand').val();
         const description = $('#productDescription').val()?.trim();
         const priceInput = $('#productPrice').val()?.trim();
         const stockInput = $('#productStock').val()?.trim();
@@ -2393,8 +2538,9 @@ async function saveProduct() {
             return;
         }
         
-        if (!category) {
-            showAlert('Category is required', 'warning');
+        // Category or Brand is required (at least one)
+        if (!category && !brand) {
+            showAlert('Either Category or Brand is required', 'warning');
             return;
         }
         
@@ -2443,11 +2589,11 @@ async function saveProduct() {
         });
 
         const subcategory = $('#productSubcategory').val();
+        const department = $('#productDepartment').val();
         
     const payload = {
             name: name,
             price: price,
-            category: category,
             description: description,
             stock: stock,
             discount: discount,
@@ -2460,8 +2606,18 @@ async function saveProduct() {
             isActive: $('#productActive').is(':checked')
         };
         
+        // Add category/department only if provided (not required for brand-only products)
+        if (category) {
+            payload.category = category;
+        }
+        if (department) {
+            payload.department = department;
+        }
         if (subcategory) {
             payload.subcategory = subcategory;
+        }
+        if (brand) {
+            payload.brand = brand;
         }
 
         if (!uploadedMedia && !imageUrl && !existingFileId) {
@@ -2655,9 +2811,9 @@ async function uploadBannerFile(fileInputSelector) {
         const positionValue = $('#bannerPosition').val() || 'middle';
         const sizeValue = $('#bannerSize').val() || 'medium';
         
-        if (titleValue) formData.append('title', titleValue);
-        // Always send description - backend will use title as default if empty
-        formData.append('description', descriptionValue || titleValue || 'Banner');
+        // Always send title and description, even if empty
+        formData.append('title', titleValue || '');
+        formData.append('description', descriptionValue || '');
         if (linkValue) formData.append('link', linkValue);
         if (positionValue) formData.append('position', positionValue);
         if (sizeValue) formData.append('size', sizeValue);
@@ -2728,13 +2884,25 @@ async function saveBanner() {
             console.log('Saving banner with position:', positionValue);
 
             const payload = {
-                title: titleValue || 'Homepage Banner',
-                description: descriptionValue || 'Banner description',
+                title: titleValue || '',
+                description: descriptionValue || '',
                 link: linkValue || '/',
                 position: positionValue,
                 size: sizeValue,
                 isActive: $('#bannerActive').is(':checked')
             };
+            
+            // Add custom dimensions if size is custom
+            if (sizeValue === 'custom') {
+                const customWidth = parseInt($('#bannerCustomWidth').val(), 10);
+                const customHeight = parseInt($('#bannerCustomHeight').val(), 10);
+                if (customWidth && customWidth >= 100 && customWidth <= 5000) {
+                    payload.customWidth = customWidth;
+                }
+                if (customHeight && customHeight >= 50 && customHeight <= 2000) {
+                    payload.customHeight = customHeight;
+                }
+            }
             
             console.log('Banner payload:', payload);
 
@@ -2865,14 +3033,26 @@ async function saveBanner() {
         }
 
         const payload = {
-            title: titleValue || 'Homepage Banner',
-            description: descriptionValue || 'Banner description',
+            title: titleValue || '',
+            description: descriptionValue || '',
             image: imageUrl,
             link: linkValue || '/',
             position: positionValue,
             size: sizeValue,
             isActive: $('#bannerActive').is(':checked')
         };
+        
+        // Add custom dimensions if size is custom
+        if (sizeValue === 'custom') {
+            const customWidth = parseInt($('#bannerCustomWidth').val(), 10);
+            const customHeight = parseInt($('#bannerCustomHeight').val(), 10);
+            if (customWidth && customWidth >= 100 && customWidth <= 5000) {
+                payload.customWidth = customWidth;
+            }
+            if (customHeight && customHeight >= 50 && customHeight <= 2000) {
+                payload.customHeight = customHeight;
+            }
+        }
 
         await $.ajax({
             url,
@@ -3021,21 +3201,41 @@ async function editProduct(id) {
 
         const departmentId = product.department ? product.department._id : '';
         const categoryId = product.category ? product.category._id : '';
+        const brandId = product.brand ? (product.brand._id || product.brand) : '';
 
-        await loadDepartmentsToSelect('#productDepartment', { includeInactive: true, selectedId: departmentId });
-        $('#productDepartment').val(departmentId);
-        await loadCategoriesToSelect('#productCategory', departmentId, { selectedId: categoryId });
-        $('#productCategory').val(categoryId);
+        // Load brands
+        await loadBrandsToSelect('#productBrand', { selectedId: brandId });
         
-        // Load subcategories if category is selected
-        if (categoryId) {
+        // Load departments and categories if they exist
+        if (departmentId) {
+            await loadDepartmentsToSelect('#productDepartment', { includeInactive: true, selectedId: departmentId });
+            $('#productDepartment').val(departmentId);
+        } else {
+            await loadDepartmentsToSelect('#productDepartment');
+        }
+        
+        if (categoryId && departmentId) {
+            await loadCategoriesToSelect('#productCategory', departmentId, { selectedId: categoryId });
+            $('#productCategory').val(categoryId);
+            
+            // Load subcategories if category is selected
             const subcategoryId = product.subcategory ? (product.subcategory._id || product.subcategory) : '';
             await loadSubcategoriesToSelect('#productSubcategory', categoryId, { selectedId: subcategoryId });
             if (subcategoryId) {
                 $('#productSubcategory').val(subcategoryId);
             }
         } else {
+            $('#productCategory').html('<option value="">Select Department First</option>');
             $('#productSubcategory').html('<option value="">Select Category First</option>');
+        }
+        
+        // Set required attributes based on brand
+        if (brandId) {
+            $('#productDepartment').prop('required', false);
+            $('#productCategory').prop('required', false);
+        } else {
+            $('#productDepartment').prop('required', true);
+            $('#productCategory').prop('required', true);
         }
 
         $('#productModalTitle').text('Edit Product');
@@ -3079,15 +3279,41 @@ async function editSlider(id) {
 async function editBanner(id) {
     try {
         const banner = await $.get(`/api/banners/detail/${id}`);
+        
+        // Load dynamic positions first, passing the banner's position to preserve it
+        await loadBannerPositions(banner.position || 'middle');
+        
         $('#bannerId').val(banner._id);
         $('#bannerTitle').val(banner.title);
         $('#bannerDescription').val(banner.description || '');
         $('#bannerImage').val(banner.image || '');
         $('#bannerImageFileId').val(banner.imageUpload ? banner.imageUpload._id : '');
         $('#bannerLink').val(banner.link || '');
-        $('#bannerPosition').val(banner.position || 'middle');
+        
+        // Set size and preserve custom dimensions
         $('#bannerSize').val(banner.size || 'medium');
         $('#bannerActive').prop('checked', banner.isActive);
+        
+        // Always load custom dimensions if they exist, even if size is not currently 'custom'
+        // This preserves the values when user changes size temporarily
+        // Use !== undefined to handle 0 values correctly
+        if (banner.customWidth !== undefined && banner.customWidth !== null) {
+            $('#bannerCustomWidth').val(banner.customWidth);
+        } else {
+            $('#bannerCustomWidth').val('');
+        }
+        if (banner.customHeight !== undefined && banner.customHeight !== null) {
+            $('#bannerCustomHeight').val(banner.customHeight);
+        } else {
+            $('#bannerCustomHeight').val('');
+        }
+        
+        // Show/hide custom dimensions based on current size
+        if (banner.size === 'custom') {
+            $('#customBannerDimensions').show();
+        } else {
+            $('#customBannerDimensions').hide();
+        }
         
         // Check if banner is a YouTube/Vimeo video and show embed preview
         const imageUrl = resolveItemImage(banner) || banner.image || '';
@@ -3270,10 +3496,10 @@ function loadBrands() {
             if (!Array.isArray(brands)) {
                 console.error('❌ Invalid brands response format:', response);
                 showAlert('Error: Invalid response format from server', 'danger');
-                html = '<tr><td colspan="6" class="text-center text-danger">Error loading brands. Please check console for details.</td></tr>';
+                html = '<tr><td colspan="7" class="text-center text-danger">Error loading brands. Please check console for details.</td></tr>';
             } else if (brands.length === 0) {
                 console.log('⚠️ No brands found in database');
-                html = '<tr><td colspan="6" class="text-center text-muted">No brands found. Click "Add Brand" to add your first brand logo.</td></tr>';
+                html = '<tr><td colspan="7" class="text-center text-muted">No brands found. Click "Add Brand" to add your first brand logo.</td></tr>';
             } else {
                 console.log(`✅ Rendering ${brands.length} brands in table`);
                 brands.forEach(function(brand) {
@@ -3291,11 +3517,19 @@ function loadBrands() {
                     }
                     
                     console.log('  → Resolved image URL:', imageUrl);
+                    // Format discount display
+                    let discountDisplay = '-';
+                    if (brand.discount && brand.discount > 0) {
+                        const discountText = brand.discountText || `${brand.discount}% OFF`;
+                        discountDisplay = `<span class="badge bg-danger">${discountText}</span>`;
+                    }
+                    
                     html += `
                         <tr>
                             <td>${brand.order || 0}</td>
                             <td><img src="${imageUrl}" alt="${brand.name}" style="max-width: 80px; max-height: 50px; object-fit: contain;" onerror="console.error('Failed to load brand image:', '${imageUrl}'); this.src='${IMAGE_PLACEHOLDER}';"></td>
                             <td>${brand.name}</td>
+                            <td>${discountDisplay}</td>
                             <td>${brand.link ? `<a href="${brand.link}" target="_blank">${brand.link}</a>` : '-'}</td>
                             <td><span class="badge ${brand.isActive ? 'bg-success' : 'bg-secondary'}">${brand.isActive ? 'Active' : 'Inactive'}</span></td>
                             <td>
@@ -3364,6 +3598,8 @@ function editBrand(id) {
             $('#brandAlt').val(brand.alt || '');
             $('#brandLink').val(brand.link || '');
             $('#brandOrder').val(brand.order || 0);
+            $('#brandDiscount').val(brand.discount || 0);
+            $('#brandDiscountText').val(brand.discountText || '');
             $('#brandActive').prop('checked', brand.isActive !== false);
             $('#brandImage').val(brand.image || '');
             $('#brandImageFileId').val(brand.imageUpload || '');
@@ -3400,11 +3636,16 @@ async function saveBrand() {
         const imageUrl = ($('#brandImage').val() || '').trim();
         const existingFileId = normaliseFileId($('#brandImageFileId').val());
 
+        const discountValue = parseInt($('#brandDiscount').val() || '0', 10);
+        const discountTextValue = $('#brandDiscountText').val()?.trim() || '';
+        
         const payload = {
             name: name,
             alt: $('#brandAlt').val()?.trim() || undefined,
             link: $('#brandLink').val()?.trim() || undefined,
             order: parseInt($('#brandOrder').val() || '0', 10),
+            discount: discountValue || 0,
+            discountText: discountTextValue || '',
             isActive: $('#brandActive').is(':checked')
         };
 
@@ -3424,8 +3665,13 @@ async function saveBrand() {
             if (imageUrl) {
                 payload.image = imageUrl;
             }
-            if (existingFileId) {
+            // Only include imageFileId if it's a valid non-empty value
+            if (existingFileId && existingFileId !== '' && existingFileId !== 'null' && existingFileId !== 'undefined') {
                 payload.imageFileId = existingFileId;
+            } else if (id) {
+                // When editing, if no fileId is provided, don't send it (or send null to clear it)
+                // This prevents sending empty string which causes ObjectId cast error
+                payload.imageFileId = null;
             }
         }
 
@@ -3717,6 +3963,8 @@ function resetBrandForm() {
     $('#brandForm')[0].reset();
     $('#brandId').val('');
     $('#brandOrder').val('0');
+    $('#brandDiscount').val('0');
+    $('#brandDiscountText').val('');
     $('#brandActive').prop('checked', true);
     $('#brandImageFileId').val('');
     setImagePreview('#brandImagePreview', null);
@@ -3824,6 +4072,7 @@ function getSectionTypeLabel(type) {
         'collectionLinks': 'Collection Links',
         'newsletterSocial': 'Newsletter & Social',
         'brandMarquee': 'Brand Marquee',
+        'brandGrid': 'Brand Grid',
         'customHTML': 'Custom HTML'
     };
     return labels[type] || type;
@@ -3844,6 +4093,7 @@ function getSectionTypeBadge(type) {
         'collectionLinks': 'bg-info',
         'newsletterSocial': 'bg-dark',
         'brandMarquee': 'bg-secondary',
+        'brandGrid': 'bg-success',
         'customHTML': 'bg-dark'
     };
     return badges[type] || 'bg-secondary';
@@ -4177,6 +4427,26 @@ function loadHomepageSectionConfig(sectionType) {
             `;
             break;
             
+        case 'brandGrid':
+            configHtml = `
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <strong>Brand Grid Configuration</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Limit (Number of brands to display)</label>
+                            <input type="number" class="form-control" id="configBrandGridLimit" min="1" max="20" value="10">
+                            <div class="form-text">Maximum number of brands to display in the grid (default: 10). Brands are automatically loaded from the database.</div>
+                        </div>
+                        <div class="alert alert-info">
+                            <strong>Note:</strong> Brands are automatically loaded from the database. Make sure you have active brands with images and discount information set up in the "Brand Logos" section.
+                        </div>
+                    </div>
+                </div>
+            `;
+            break;
+            
         case 'customHTML':
             configHtml = `
                 <div class="card border-dark">
@@ -4331,6 +4601,67 @@ async function loadVideoBannersForConfig() {
         $('#configVideoBannerId').html(html);
     } catch (error) {
         console.error('Error loading video banners for config:', error);
+    }
+}
+
+// Load homepage sections and populate banner position dropdown dynamically
+async function loadBannerPositions(preserveValue = null) {
+    try {
+        const sections = await $.get('/api/homepage-sections');
+        const $positionSelect = $('#bannerPosition');
+        
+        // Store current value or use provided value
+        const currentValue = preserveValue !== null ? preserveValue : $positionSelect.val();
+        
+        // Clear existing options
+        $positionSelect.empty();
+        
+        // Add standard positions
+        $positionSelect.append('<option value="top">Top Section (Near top of page)</option>');
+        $positionSelect.append('<option value="after-hero">After Hero Slider (Immediately after main slider)</option>');
+        
+        // Add dynamic positions based on homepage sections
+        if (Array.isArray(sections) && sections.length > 0) {
+            // Sort sections by ordering
+            const sortedSections = sections
+                .filter(s => s.isActive && s.isPublished)
+                .sort((a, b) => (a.ordering || 0) - (b.ordering || 0));
+            
+            // Add option for each section
+            sortedSections.forEach(section => {
+                const sectionName = section.name || `Section ${section.ordering || 0}`;
+                const sectionType = section.type || 'unknown';
+                const positionValue = `after-section-${section._id}`;
+                $positionSelect.append(`<option value="${positionValue}">After "${sectionName}" (${getSectionTypeLabel(sectionType)})</option>`);
+            });
+        }
+        
+        // Add remaining standard positions
+        $positionSelect.append('<option value="after-categories">After Category Sections</option>');
+        $positionSelect.append('<option value="middle">Middle Section (Between product sections)</option>');
+        $positionSelect.append('<option value="before-footer">Before Footer Section</option>');
+        $positionSelect.append('<option value="bottom">Bottom Section (At end of page)</option>');
+        
+        // Restore previous value if it exists, otherwise default to 'middle'
+        if (currentValue) {
+            $positionSelect.val(currentValue);
+        } else {
+            $positionSelect.val('middle');
+        }
+    } catch (error) {
+        console.error('Error loading banner positions:', error);
+        // Fallback to default options if API fails
+        const $positionSelect = $('#bannerPosition');
+        if ($positionSelect.children().length === 0) {
+            $positionSelect.html(`
+                <option value="top">Top Section (Near top of page)</option>
+                <option value="after-hero">After Hero Slider (Immediately after main slider)</option>
+                <option value="after-categories">After Category Sections</option>
+                <option value="middle" selected>Middle Section (Between product sections)</option>
+                <option value="before-footer">Before Footer Section</option>
+                <option value="bottom">Bottom Section (At end of page)</option>
+            `);
+        }
     }
 }
 
@@ -4571,6 +4902,10 @@ function buildHomepageSectionConfig(sectionType) {
             config.html = $('#configCustomHTML').val() || '';
             break;
             
+        case 'brandGrid':
+            config.limit = parseInt($('#configBrandGridLimit').val(), 10) || 10;
+            break;
+            
         case 'collectionLinks':
         case 'brandMarquee':
         case 'categoryCircles':
@@ -4697,6 +5032,10 @@ function populateHomepageSectionConfig(sectionType, config) {
             if (config.newsletterTitle) $('#configNewsletterTitle').val(config.newsletterTitle);
             if (config.newsletterDesc) $('#configNewsletterDesc').val(config.newsletterDesc);
             if (config.socialLinks) $('#configSocialLinks').val(JSON.stringify(config.socialLinks, null, 2));
+            break;
+            
+        case 'brandGrid':
+            if (config.limit) $('#configBrandGridLimit').val(config.limit);
             break;
             
         case 'customHTML':

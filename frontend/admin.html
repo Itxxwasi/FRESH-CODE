@@ -258,31 +258,43 @@
                                             <option value="lingerie">👙 Lingerie</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label for="filter-category" class="form-label small">Category</label>
-                                        <select class="form-select form-select-sm" id="filter-category">
-                                            <option value="">All Categories</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <label for="filter-department" class="form-label small">Department</label>
                                         <select class="form-select form-select-sm" id="filter-department">
                                             <option value="">All Departments</option>
                                         </select>
                                     </div>
-                                        <div class="col-md-3">
-                                            <label for="filter-section" class="form-label small">Section</label>
-                                            <select class="form-select form-select-sm" id="filter-section">
-                                                <option value="">All Sections</option>
-                                                <option value="Top Selling">🏆 Top Selling</option>
-                                                <option value="Lingerie Collection">👙 Lingerie Collection</option>
-                                                <option value="Product Feature Collection">⭐ Product Feature Collection</option>
-                                                <option value="10.10 Mega Sale">🎉 10.10 Mega Sale</option>
-                                                <option value="New Arrivals">🆕 New Arrivals</option>
-                                                <option value="Best Sellers">⭐ Best Sellers</option>
-                                                <option value="On Sale">💰 On Sale</option>
-                                            </select>
-                                        </div>
+                                    <div class="col-md-2">
+                                        <label for="filter-category" class="form-label small">Category</label>
+                                        <select class="form-select form-select-sm" id="filter-category">
+                                            <option value="">All Categories</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="filter-subcategory" class="form-label small">Subcategory</label>
+                                        <select class="form-select form-select-sm" id="filter-subcategory">
+                                            <option value="">All Subcategories</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="filter-brand" class="form-label small">Brand</label>
+                                        <select class="form-select form-select-sm" id="filter-brand">
+                                            <option value="">All Brands</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="filter-section" class="form-label small">Section</label>
+                                        <select class="form-select form-select-sm" id="filter-section">
+                                            <option value="">All Sections</option>
+                                            <option value="Top Selling">🏆 Top Selling</option>
+                                            <option value="Lingerie Collection">👙 Lingerie Collection</option>
+                                            <option value="Product Feature Collection">⭐ Product Feature Collection</option>
+                                            <option value="10.10 Mega Sale">🎉 10.10 Mega Sale</option>
+                                            <option value="New Arrivals">🆕 New Arrivals</option>
+                                            <option value="Best Sellers">⭐ Best Sellers</option>
+                                            <option value="On Sale">💰 On Sale</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="row g-2 mt-2">
                                     <div class="col-md-4">
@@ -319,6 +331,8 @@
                                     <th>Name</th>
                                     <th>Department</th>
                                     <th>Category</th>
+                                    <th>Subcategory</th>
+                                    <th>Brand</th>
                                     <th>Sections</th>
                                     <th>Price</th>
                                     <th>Discount</th>
@@ -1105,14 +1119,23 @@
                             </div>
                             <input type="hidden" id="productImageFileId" name="productImageFileId">
                             <div class="col-md-6">
+                                <label for="productBrand" class="form-label">Brand (Optional)</label>
+                                <select class="form-select" id="productBrand" name="productBrand">
+                                    <option value="">No Brand</option>
+                                </select>
+                                <small class="form-text text-muted">Select a brand to add product without department/category</small>
+                            </div>
+                            <div class="col-md-6">
                                 <label for="productDepartment" class="form-label">Department</label>
-                                <select class="form-select" id="productDepartment" name="productDepartment" required></select>
+                                <select class="form-select" id="productDepartment" name="productDepartment"></select>
+                                <small class="form-text text-muted">Required if no brand is selected</small>
                             </div>
                             <div class="col-md-6">
                                 <label for="productCategory" class="form-label">Category</label>
-                                <select class="form-select" id="productCategory" name="productCategory" required>
+                                <select class="form-select" id="productCategory" name="productCategory">
                                     <option value="">Select Department First</option>
                                 </select>
+                                <small class="form-text text-muted">Required if no brand is selected</small>
                             </div>
                             <div class="col-md-6">
                                 <label for="productSubcategory" class="form-label">Subcategory (Optional)</label>
@@ -1293,11 +1316,11 @@
                         <input type="hidden" id="bannerId" name="bannerId">
                         <div class="mb-3">
                             <label for="bannerTitle" class="form-label">Title</label>
-                            <input type="text" class="form-control" id="bannerTitle" name="bannerTitle" required>
+                            <input type="text" class="form-control" id="bannerTitle" name="bannerTitle">
                         </div>
                         <div class="mb-3">
                             <label for="bannerDescription" class="form-label">Description</label>
-                            <textarea class="form-control" id="bannerDescription" name="bannerDescription" rows="3" required></textarea>
+                            <textarea class="form-control" id="bannerDescription" name="bannerDescription" rows="3"></textarea>
                         </div>
                         <div class="mb-3">
                             <label for="bannerImage" class="form-label">Image URL</label>
@@ -1361,13 +1384,29 @@
                                 <option value="medium" selected>Medium (800x400px - Standard banner)</option>
                                 <option value="large">Large (1200x500px - Large banner)</option>
                                 <option value="full-width">Full Width (1920x600px - Full page width)</option>
+                                <option value="custom">Custom (Specify width and height)</option>
                             </select>
                             <div class="form-text">
                                 <strong>Recommended banner sizes:</strong><br>
                                 • <strong>Small:</strong> 600x300px - For compact spaces<br>
                                 • <strong>Medium:</strong> 800x400px - Standard size (recommended)<br>
                                 • <strong>Large:</strong> 1200x500px - For prominent displays<br>
-                                • <strong>Full Width:</strong> 1920x600px - Full page width banner
+                                • <strong>Full Width:</strong> 1920x600px - Full page width banner<br>
+                                • <strong>Custom:</strong> Specify your own width and height in pixels
+                            </div>
+                        </div>
+                        <div class="mb-3" id="customBannerDimensions" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="bannerCustomWidth" class="form-label">Custom Width (px)</label>
+                                    <input type="number" class="form-control" id="bannerCustomWidth" name="bannerCustomWidth" min="100" max="5000" placeholder="e.g., 1200">
+                                    <div class="form-text">Width in pixels (100-5000px)</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="bannerCustomHeight" class="form-label">Custom Height (px)</label>
+                                    <input type="number" class="form-control" id="bannerCustomHeight" name="bannerCustomHeight" min="50" max="2000" placeholder="e.g., 400">
+                                    <div class="form-text">Height in pixels (50-2000px)</div>
+                                </div>
                             </div>
                         </div>
                         <div class="form-check">
@@ -1525,6 +1564,22 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
+                                    <label for="brandDiscount" class="form-label">Discount (%)</label>
+                                    <input type="number" class="form-control" id="brandDiscount" value="0" min="0" max="100" placeholder="e.g., 50">
+                                    <div class="form-text">Enter discount percentage (0-100). Leave as 0 if no discount.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="brandDiscountText" class="form-label">Discount Text</label>
+                                    <input type="text" class="form-control" id="brandDiscountText" placeholder="e.g., Flat 50% OFF">
+                                    <div class="form-text">Custom discount text (optional). If empty, will show "X% OFF".</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
                                     <label class="form-label">Upload Image</label>
                                     <input type="file" class="form-control" id="brandImageFile" accept="image/*">
                                     <small class="form-text text-muted">Upload will override the URL if both are provided.</small>
@@ -1593,6 +1648,7 @@
                                     <option value="collectionLinks">Collection Links</option>
                                     <option value="newsletterSocial">Newsletter & Social</option>
                                     <option value="brandMarquee">Brand Marquee</option>
+                                    <option value="brandGrid">Brand Grid</option>
                                     <option value="customHTML">Custom HTML</option>
                                 </select>
                             </div>

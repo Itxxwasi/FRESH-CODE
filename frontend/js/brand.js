@@ -1,16 +1,17 @@
 $(document).ready(function() {
-    // Get subcategory ID from URL
+    // Get brand ID from URL
     const pathParts = window.location.pathname.split('/');
-    const subcategoryId = pathParts[pathParts.length - 1];
+    const brandId = pathParts[pathParts.length - 1];
     
-    if (!subcategoryId) {
+    if (!brandId) {
         window.location.href = '/';
         return;
     }
 
     // Load cart count
     loadCartCount();
-    
+    loadDepartments();
+
     // Initialize navbar - wait for main.js to load
     function initNavbar() {
         // Use main.js functions if available
@@ -31,65 +32,50 @@ $(document).ready(function() {
     // Start navbar initialization
     initNavbar();
 
-    // Load subcategory data
-    loadSubcategoryData(subcategoryId);
+    // Load brand data
+    loadBrandData(brandId);
 });
 
-function loadSubcategoryData(subcategoryId) {
-    $.get(`/api/public/subcategories/${subcategoryId}`)
+function loadBrandData(brandId) {
+    $.get(`/api/brands/${brandId}/products`)
         .done(function(data) {
-            const { subcategory, products } = data;
+            const { brand, products } = data;
 
             // Update breadcrumb
-            const catId = subcategory.category?._id || subcategory.category;
-            const catName = subcategory.category?.name || 'Category';
-            const deptId = subcategory.category?.department?._id || subcategory.category?.department;
-            const deptName = subcategory.category?.department?.name || 'Department';
-            
-            let breadcrumbHtml = `
+            $('#breadcrumb').html(`
                 <li class="breadcrumb-item"><a href="/">Home</a></li>
-            `;
-            
-            if (deptId) {
-                breadcrumbHtml += `<li class="breadcrumb-item"><a href="/department/${deptId}">${deptName}</a></li>`;
-            }
-            
-            if (catId) {
-                breadcrumbHtml += `<li class="breadcrumb-item"><a href="/category/${catId}">${catName}</a></li>`;
-            }
-            
-            breadcrumbHtml += `<li class="breadcrumb-item active">${subcategory.name}</li>`;
-            
-            $('#breadcrumb').html(breadcrumbHtml);
+                <li class="breadcrumb-item active">${brand.name}</li>
+            `);
 
-            // Update subcategory header
-            $('#subcategoryName').text(subcategory.name);
-            $('#subcategoryDescription').text(subcategory.description || '');
+            // Update brand header
+            $('#brandName').text(brand.name);
             
-            // Set subcategory image
-            const subcatImage = subcategory.imageUpload?.url || subcategory.image || 'https://via.placeholder.com/400x300';
-            $('#subcategoryImage').attr('src', subcatImage).attr('alt', subcategory.name);
+            // Set brand image
+            const brandImage = brand.imageUpload?.url || brand.image || 'https://via.placeholder.com/400x300';
+            $('#brandImage').attr('src', brandImage).attr('alt', brand.name);
 
-            // Set category link
-            if (catId) {
-                $('#categoryLink').attr('href', `/category/${catId}`);
+            // Show discount if available
+            if (brand.discount && brand.discount > 0) {
+                const discountText = brand.discountText || `Flat ${Math.round(brand.discount)}% OFF`;
+                $('#discountText').text(discountText);
+                $('#brandDiscount').show();
             } else {
-                $('#categoryLink').hide();
+                $('#brandDiscount').hide();
             }
 
             // Render products
             renderProducts(products);
 
             // Update page title
-            document.title = `${subcategory.name} - D.Watson Pharmacy`;
+            document.title = `${brand.name} - D.Watson Pharmacy`;
         })
         .fail(function(error) {
-            console.error('Error loading subcategory:', error);
+            console.error('Error loading brand:', error);
             if (error.status === 404) {
-                alert('Subcategory not found');
+                alert('Brand not found');
                 window.location.href = '/';
             } else {
-                alert('Error loading subcategory. Please try again.');
+                alert('Error loading brand. Please try again.');
             }
         });
 }
@@ -343,5 +329,14 @@ function loadDepartmentsFallback() {
         .fail(function() {
             console.error('Error loading departments');
         });
+}
+
+function loadDepartments() {
+    // Use main.js function if available
+    if (typeof window.loadDepartments === 'function') {
+        window.loadDepartments().catch(err => console.warn('Departments loading failed:', err));
+    } else {
+        loadDepartmentsFallback();
+    }
 }
 

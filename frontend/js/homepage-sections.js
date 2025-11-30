@@ -62,6 +62,7 @@ const HOMEPAGE_SECTION_RENDERERS = {
     collectionLinks: renderCollectionLinks,
     newsletterSocial: renderNewsletterSocial,
     brandMarquee: renderBrandMarquee,
+    brandGrid: renderBrandGrid,
     customHTML: renderCustomHTML
 };
 
@@ -1861,6 +1862,116 @@ async function renderBrandMarquee(section, index) {
     }
 }
 
+// Render Brand Grid with Sale Banners
+async function renderBrandGrid(section, index) {
+    try {
+        console.log('Rendering brand grid section:', section.name || section._id);
+        
+        // Fetch active brands from API
+        let brands = [];
+        try {
+            const response = await fetch('/api/brands/public');
+            if (response.ok) {
+                const apiBrands = await response.json();
+                brands = Array.isArray(apiBrands) ? apiBrands : (apiBrands.brands || apiBrands.data || []);
+                console.log(`Fetched ${brands.length} brands from API for brand grid`);
+            } else {
+                console.warn('Failed to fetch brands from API:', response.status, response.statusText);
+            }
+        } catch (fetchError) {
+            console.error('Error fetching brands from API:', fetchError);
+        }
+        
+        // Filter out brands without images
+        brands = brands.filter(brand => {
+            const hasImage = brand.image || brand.logo;
+            if (!hasImage) {
+                console.warn('Skipping brand without image:', brand.name || brand);
+            }
+            return hasImage;
+        });
+        
+        // If no brands, return null
+        if (!brands || brands.length === 0) {
+            console.log('No brands with images found to display in brand grid');
+            return null;
+        }
+        
+        // Limit to config limit or default 10
+        const limit = section.config?.limit || 10;
+        brands = brands.slice(0, limit);
+        
+        console.log(`Rendering ${brands.length} brands in brand grid`);
+        
+        // Helper function to get discount text
+        function getDiscountText(brand) {
+            if (brand.discountText) {
+                return brand.discountText;
+            }
+            if (brand.discount && brand.discount > 0) {
+                return `Flat ${Math.round(brand.discount)}% OFF`;
+            }
+            return '';
+        }
+        
+        const sectionHtml = `
+        <section class="brand-grid homepage-section" data-section-type="brandGrid" data-section-id="${section._id}">
+            <div class="container py-5">
+                ${section.title ? `
+                    <div class="section-header text-center mb-4">
+                        <h2>${htmlEscape(section.title)}</h2>
+                        ${section.subtitle ? `<p class="text-muted">${htmlEscape(section.subtitle)}</p>` : ''}
+                    </div>
+                ` : ''}
+                <div class="row g-4">
+                    ${brands.map(brand => {
+                        const logoUrl = brand.image || brand.logo || '';
+                        const brandName = brand.name || brand.alt || 'Brand';
+                        const brandAlt = brand.alt || brandName;
+                        const brandId = brand._id || brand.id || '';
+                        const discountText = getDiscountText(brand);
+                        const hasDiscount = discountText !== '';
+                        
+                        if (!logoUrl || logoUrl === 'null' || logoUrl === 'undefined') {
+                            return '';
+                        }
+                        
+                        const brandLink = brand.link || (brandId ? `/brand/${brandId}` : '#');
+                        
+                        return `
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                            <div class="brand-grid-item position-relative">
+                                <a href="${htmlEscape(brandLink)}" class="brand-grid-link">
+                                    <div class="brand-grid-logo-wrapper">
+                                        <img src="${htmlEscape(logoUrl)}" alt="${htmlEscape(brandAlt)}" 
+                                             class="brand-grid-logo" loading="lazy">
+                                    </div>
+                                    ${hasDiscount ? `
+                                    <div class="brand-grid-sale-banner">
+                                        <span class="brand-sale-text">${htmlEscape(discountText)}</span>
+                                    </div>
+                                    ` : ''}
+                                </a>
+                            </div>
+                        </div>
+                        `;
+                    }).filter(html => html !== '').join('')}
+                </div>
+            </div>
+        </section>
+        `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sectionHtml;
+        const sectionElement = tempDiv.firstElementChild;
+        
+        return sectionElement;
+    } catch (error) {
+        console.error('Error rendering brand grid:', error);
+        return null;
+    }
+}
+
 // Render Custom HTML
 function renderCustomHTML(section, index) {
     const html = section.config?.html || '';
@@ -2212,7 +2323,9 @@ async function loadAndRenderBanners() {
     try {
         // Use cache-busting timestamp to ensure fresh data after banner deletions
         const banners = await cachedFetch(`/api/banners?_t=${Date.now()}`);
+        console.log('Banners loaded:', banners);
         if (!Array.isArray(banners) || banners.length === 0) {
+            console.warn('No banners found or invalid response');
             return;
         }
         
@@ -2235,6 +2348,7 @@ async function loadAndRenderBanners() {
         });
         
         // Group banners by position, excluding already rendered banners
+        // Also handle dynamic positions (after-section-{sectionId})
         const bannersByPosition = {
             'top': banners.filter(b => b.position === 'top' && b.isActive && !renderedBannerIds.has(b._id)),
             'after-hero': banners.filter(b => b.position === 'after-hero' && b.isActive && !renderedBannerIds.has(b._id)),
@@ -2247,7 +2361,8 @@ async function loadAndRenderBanners() {
             'after-lingerie-collection': banners.filter(b => b.position === 'after-lingerie-collection' && b.isActive && !renderedBannerIds.has(b._id)),
             'after-product-feature-collection': banners.filter(b => b.position === 'after-product-feature-collection' && b.isActive && !renderedBannerIds.has(b._id)),
             'before-footer': banners.filter(b => b.position === 'before-footer' && b.isActive && !renderedBannerIds.has(b._id)),
-            'bottom': banners.filter(b => b.position === 'bottom' && b.isActive && !renderedBannerIds.has(b._id))
+            'bottom': banners.filter(b => b.position === 'bottom' && b.isActive && !renderedBannerIds.has(b._id)),
+            'dynamic': banners.filter(b => b.position && b.position.startsWith('after-section-') && b.isActive && !renderedBannerIds.has(b._id))
         };
         
         // Helper function to get current sections
@@ -2308,13 +2423,18 @@ async function loadAndRenderBanners() {
             'bottom'
         ];
         
+        // First render standard position banners
         for (const position of positionOrder) {
             const positionBanners = bannersByPosition[position];
             if (positionBanners.length > 0) {
                 const banner = positionBanners[0]; // Use first banner for each position
+                console.log(`Rendering banner for position "${position}":`, banner);
                 const bannerElement = renderBannerByPosition(banner, position);
                 
-                if (!bannerElement) continue;
+                if (!bannerElement) {
+                    console.warn(`Failed to render banner for position "${position}"`);
+                    continue;
+                }
                 
                 const sections = getSections();
                 
@@ -2447,7 +2567,47 @@ async function loadAndRenderBanners() {
                         // At the very end
                         homepageSectionsContainer.appendChild(bannerElement);
                         break;
+                        
+                    default:
+                        // Handle dynamic positions (format: "after-section-{sectionId}")
+                        if (position && position.startsWith('after-section-')) {
+                            const sectionId = position.replace('after-section-', '');
+                            // Find section by ID
+                            const sectionIndex = Array.from(sections).findIndex(section => {
+                                return section.getAttribute('data-section-id') === sectionId;
+                            });
+                            if (sectionIndex !== -1 && sections[sectionIndex]) {
+                                insertBannerAfterSection(bannerElement, sectionIndex);
+                            } else {
+                                // Fallback: append at end
+                                homepageSectionsContainer.appendChild(bannerElement);
+                            }
+                        } else {
+                            // Unknown position - append at end
+                            homepageSectionsContainer.appendChild(bannerElement);
+                        }
+                        break;
                 }
+            }
+        }
+        
+        // Render dynamic position banners (after-section-{sectionId})
+        const dynamicBanners = bannersByPosition['dynamic'] || [];
+        for (const banner of dynamicBanners) {
+            const bannerElement = renderBannerByPosition(banner, banner.position);
+            if (!bannerElement) continue;
+            
+            const sections = getSections();
+            const sectionId = banner.position.replace('after-section-', '');
+            // Find section by ID
+            const sectionIndex = Array.from(sections).findIndex(section => {
+                return section.getAttribute('data-section-id') === sectionId;
+            });
+            if (sectionIndex !== -1 && sections[sectionIndex]) {
+                insertBannerAfterSection(bannerElement, sectionIndex);
+            } else {
+                // Fallback: append at end
+                homepageSectionsContainer.appendChild(bannerElement);
             }
         }
         
@@ -2461,19 +2621,32 @@ async function loadAndRenderBanners() {
 
 // Render a banner by position with title
 function renderBannerByPosition(banner, position) {
-    if (!banner || !banner.isActive) return null;
-    
-    const imageUrl = banner.imageUpload?.url || banner.image || getGlobalFallbackImage();
-    const link = banner.link || '#';
-    const title = banner.title || '';
-    const description = banner.description || '';
-    const size = banner.size || 'medium';
-    
-    // Check if banner is a YouTube/Vimeo video
-    const isVideo = banner.banner_type === 'video';
-    const videoType = banner.video_type || (isVideo ? detectVideoTypeFromUrl(imageUrl) : null);
-    const isYouTube = videoType === 'youtube';
-    const isVimeo = videoType === 'vimeo';
+    try {
+        if (!banner) {
+            console.warn('renderBannerByPosition: No banner provided');
+            return null;
+        }
+        if (!banner.isActive) {
+            console.warn('renderBannerByPosition: Banner is not active', banner._id);
+            return null;
+        }
+        
+        const imageUrl = banner.imageUpload?.url || banner.image || getGlobalFallbackImage();
+        const link = banner.link || '#';
+        const title = banner.title || '';
+        const description = banner.description || '';
+        const size = banner.size || 'medium';
+        
+        // Get custom dimensions if size is custom
+        const customWidth = banner.customWidth;
+        const customHeight = banner.customHeight;
+        const hasCustomDimensions = size === 'custom' && customWidth && customHeight;
+        
+        // Check if banner is a YouTube/Vimeo video
+        const isVideo = banner.banner_type === 'video';
+        const videoType = banner.video_type || (isVideo ? detectVideoTypeFromUrl(imageUrl) : null);
+        const isYouTube = videoType === 'youtube';
+        const isVimeo = videoType === 'vimeo';
     
     let mediaContent = '';
     
@@ -2537,21 +2710,55 @@ function renderBannerByPosition(banner, position) {
     bannerSection.setAttribute('data-banner-position', position);
     bannerSection.setAttribute('data-banner-size', size);
     
+    // Apply custom dimensions if available
+    let customStyle = '';
+    let bannerPromoStyle = '';
+    if (hasCustomDimensions) {
+        customStyle = `style="max-width: ${customWidth}px; width: 100%;"`;
+        bannerPromoStyle = `style="max-width: ${customWidth}px; width: 100%;"`;
+        bannerSection.setAttribute('data-custom-width', customWidth);
+        bannerSection.setAttribute('data-custom-height', customHeight);
+    }
+    
     // Use container-fluid for full-width, container for others
     const containerClass = size === 'full-width' ? 'container-fluid px-0' : 'container';
     
+    // Determine media container height based on size
+    let mediaHeight = '';
+    if (hasCustomDimensions) {
+        // For custom banners, use exact height with !important to override any CSS
+        mediaHeight = `height: ${customHeight}px !important; min-height: ${customHeight}px !important; max-height: ${customHeight}px !important;`;
+    } else {
+        switch(size) {
+            case 'small':
+                mediaHeight = 'height: 300px; min-height: 300px;';
+                break;
+            case 'medium':
+                mediaHeight = 'height: 400px; min-height: 400px;';
+                break;
+            case 'large':
+                mediaHeight = 'height: 500px; min-height: 500px;';
+                break;
+            case 'full-width':
+                mediaHeight = 'height: 600px; min-height: 600px;';
+                break;
+            default:
+                mediaHeight = 'height: 400px; min-height: 400px;';
+        }
+    }
+    
     bannerSection.innerHTML = `
-        <div class="${containerClass}">
-            <div class="banner-promo banner-promo--${size}">
+        <div class="${containerClass}" ${customStyle}>
+            <div class="banner-promo banner-promo--${size}" ${bannerPromoStyle}>
                 ${title ? `
                     <div class="banner-promo__header">
                         <h2 class="banner-promo__title">${htmlEscape(title)}</h2>
                         ${description ? `<p class="banner-promo__description">${htmlEscape(description)}</p>` : ''}
                     </div>
                 ` : ''}
-                ${link && link !== '#' ? `<a href="${htmlEscape(link)}" class="banner-promo__link">` : ''}
-                    <div class="banner-promo__media banner-promo__media--${size}">
-                        ${mediaContent}
+                ${link && link !== '#' ? `<a href="${htmlEscape(link)}" class="banner-promo__link" style="display: block; width: 100%; height: 100%;">` : ''}
+                    <div class="banner-promo__media banner-promo__media--${size}${hasCustomDimensions ? ' banner-promo__media--custom' : ''}" style="${mediaHeight} width: 100%; overflow: hidden; position: relative; ${hasCustomDimensions ? `max-width: ${customWidth}px;` : ''}">
+                        ${hasCustomDimensions && !isVideo ? `<img src="${htmlEscape(imageUrl)}" alt="${htmlEscape(banner.imageAlt || title || 'Banner')}" style="width: 100% !important; height: 100% !important; min-height: unset !important; max-height: ${customHeight}px !important; object-fit: cover !important; object-position: center center !important; display: block !important; position: absolute !important; top: 0 !important; left: 0 !important;" class="banner-promo__image banner-promo__image--custom" loading="lazy">` : (isVideo ? mediaContent : `<img src="${htmlEscape(imageUrl)}" alt="${htmlEscape(banner.imageAlt || title || 'Banner')}" style="width: 100%; height: 100%; object-fit: cover; object-position: center center; display: block;" class="banner-promo__image" loading="lazy">`)}
                     </div>
                 ${link && link !== '#' ? `</a>` : ''}
             </div>
@@ -2559,6 +2766,10 @@ function renderBannerByPosition(banner, position) {
     `;
     
     return bannerSection;
+    } catch (error) {
+        console.error('Error rendering banner:', error, banner);
+        return null;
+    }
 }
 
 // Export for use in main.js

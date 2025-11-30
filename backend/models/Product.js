@@ -44,7 +44,10 @@ const ProductSchema = new mongoose.Schema({
     category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
-        required: true
+        required: function() {
+            // Category is required only if brand is not provided
+            return !this.brand;
+        }
     },
     subcategory: {
         type: mongoose.Schema.Types.ObjectId,
@@ -53,7 +56,14 @@ const ProductSchema = new mongoose.Schema({
     department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department',
-        required: true
+        required: function() {
+            // Department is required only if brand is not provided
+            return !this.brand;
+        }
+    },
+    brand: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Brand'
     },
     stock: {
         type: Number,
@@ -111,9 +121,19 @@ const ProductSchema = new mongoose.Schema({
 
 // Pre-save hook: Auto-sync department from category
 // This ensures Department > Category > Product hierarchy is always maintained
+// Skip this hook if product has a brand (brand-only products don't need category/department)
 ProductSchema.pre('save', async function(next) {
+    // Skip auto-sync if product has a brand (brand-only products)
+    if (this.brand) {
+        return next();
+    }
+    
     // Only run if category is modified or department is not set
     if (this.isModified('category') || !this.department) {
+        // If no category, skip (will be caught by validation)
+        if (!this.category) {
+            return next();
+        }
         try {
             // Populate category if it's just an ID
             let category;

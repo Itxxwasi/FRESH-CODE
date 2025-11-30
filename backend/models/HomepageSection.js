@@ -29,6 +29,7 @@ const HomepageSectionSchema = new mongoose.Schema({
             'collectionLinks',    // Collection/category links
             'newsletterSocial',   // Newsletter signup with social links
             'brandMarquee',       // Brand logos marquee
+            'brandGrid',          // Brand grid with sale banners
             'customHTML'          // Custom HTML section
         ]
     },

@@ -299,6 +299,15 @@ app.get('/subcategory/:id', (req, res) => {
     sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/subcategory.html'));
 });
 
+// Brand page route
+app.get('/brand/:id', (req, res) => {
+    const id = req.params.id;
+    if (id.includes('.') || id.includes('/')) {
+        return res.status(404).send('Not found');
+    }
+    sendHTMLWithCacheBusting(req, res, path.join(__dirname, '../frontend/brand.html'));
+});
+
 // Products page route
 app.get('/products', (req, res) => {
     if (req.path.includes('.')) {

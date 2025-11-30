@@ -199,15 +199,15 @@ router.post('/', adminAuth, async (req, res) => {
             return res.status(400).json({ message: 'Discount must be a number between 0 and 100' });
         }
 
-        const product = new Product({
+        // Handle brand-only products (no category/department required)
+        const brandId = req.body.brand;
+        let productData = {
             name: req.body.name.trim(),
             description: req.body.description.trim(),
             price: price,
             discount: discount,
             image: req.body.image || '',
             images: req.body.images || [],
-            category: req.body.category,
-            department: category.department,
             stock: stock,
             isFeatured: req.body.isFeatured || false,
             isTrending: req.body.isTrending || false,
@@ -219,7 +219,23 @@ router.post('/', adminAuth, async (req, res) => {
             // Keep collectionName for backward compatibility, but convert to sections
             collectionName: req.body.collectionName || '',
             isActive: req.body.isActive !== undefined ? req.body.isActive : true
-        });
+        };
+        
+        // Add brand if provided
+        if (brandId) {
+            productData.brand = brandId;
+        } else {
+            // Only add category/department if brand is not provided
+            productData.category = req.body.category;
+            productData.department = category.department;
+        }
+        
+        // Add subcategory if provided
+        if (req.body.subcategory) {
+            productData.subcategory = req.body.subcategory;
+        }
+        
+        const product = new Product(productData);
 
         // Convert collectionName to sections if provided
         if (req.body.collectionName && req.body.collectionName.trim() !== '') {
@@ -333,6 +349,26 @@ router.put('/:id', adminAuth, async (req, res) => {
             product.discount = discount;
         }
 
+        // Handle brand field
+        if (req.body.brand !== undefined) {
+            if (req.body.brand) {
+                product.brand = req.body.brand;
+                // If brand is set, category/department become optional
+                if (req.body.category) {
+                    product.category = req.body.category;
+                } else {
+                    product.category = undefined;
+                }
+                if (req.body.department) {
+                    product.department = req.body.department;
+                } else {
+                    product.department = undefined;
+                }
+            } else {
+                product.brand = undefined;
+            }
+        }
+        
         if (req.body.category) {
             const category = await Category.findById(req.body.category);
             if (!category) {
@@ -344,12 +380,17 @@ router.put('/:id', adminAuth, async (req, res) => {
             product.category = req.body.category;
             // Department will be auto-synced by pre-save hook, but set it here too for immediate consistency
             product.department = category.department;
-        } else if (!product.department && product.category) {
-            // If category exists but department is missing, fetch and set it
+        } else if (!product.department && product.category && !product.brand) {
+            // If category exists but department is missing, fetch and set it (only if no brand)
             const category = await Category.findById(product.category);
             if (category && category.department) {
                 product.department = category.department;
             }
+        }
+        
+        // Handle subcategory
+        if (req.body.subcategory !== undefined) {
+            product.subcategory = req.body.subcategory || undefined;
         }
 
         product.images = Array.isArray(req.body.images) ? req.body.images : product.images;

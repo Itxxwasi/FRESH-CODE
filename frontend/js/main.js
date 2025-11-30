@@ -1072,9 +1072,11 @@ async function loadCategoriesForNavbar() {
         // Find and preserve static items before clearing
         const staticItems = [];
         
-        // Find Sale link (new structure uses .nav-item)
+        // Find Sale link (support both .nav-item and .menu-item structures)
         const saleItem = mainMenu.querySelector('a[href="/products.html?filter=discounted"]')?.closest('.nav-item') || 
-                        mainMenu.querySelector('.nav-item:first-child');
+                        mainMenu.querySelector('a[href="/products.html?filter=discounted"]')?.closest('.menu-item') ||
+                        mainMenu.querySelector('.nav-item:first-child') ||
+                        mainMenu.querySelector('.menu-item:first-child');
         
         // Store static items (only Sale - Shop and Blog removed)
         if (saleItem && saleItem.querySelector('a[href="/products.html?filter=discounted"]')) {
@@ -1159,38 +1161,66 @@ async function loadCategoriesForNavbar() {
                 saleCategoryId = saleCategory._id || saleCategory.id;
                 saleCategorySubcategories = subcategoriesMap.get(saleCategoryId) || [];
                 
-                // If "11.11 Sale" category has subcategories, add dropdown to static link (new structure)
+                // If "11.11 Sale" category has subcategories, add dropdown to static link
                 if (saleCategorySubcategories.length > 0) {
-                    const saleLink = mainMenu.querySelector('.nav-item:first-child .nav-link');
+                    // Support both .menu-item and .nav-item structures
+                    const saleLink = mainMenu.querySelector('.menu-item:first-child .cms-item-title, .nav-item:first-child .nav-link');
                     if (saleLink) {
                         // Convert static link to dropdown (but keep it clickable)
-                        const saleMenuItem = saleLink.closest('.nav-item');
+                        const saleMenuItem = saleLink.closest('.menu-item, .nav-item');
+                        const useMenuItemClass = saleMenuItem && saleMenuItem.classList.contains('menu-item');
+                        
                         if (saleMenuItem) {
-                            saleMenuItem.className = 'nav-item nav-item-category';
-                            saleLink.className = 'nav-link nav-link-dropdown';
+                            if (useMenuItemClass) {
+                                saleMenuItem.className = 'menu-item type_dropdown has-children';
+                                saleLink.className = 'cms-item-title dropdown-toggle nav-category-link';
+                                // Don't use data-bs-toggle to avoid Bootstrap preventing navigation
+                                saleLink.setAttribute('aria-expanded', 'false');
+                            } else {
+                                saleMenuItem.className = 'nav-item nav-item-category';
+                                saleLink.className = 'nav-link nav-link-dropdown';
+                            }
+                            
                             // Update href to point to category page instead of products filter
                             saleLink.href = `/category/${saleCategoryId}`;
                             
-                            // Add dropdown arrow icon
-                            if (!saleLink.querySelector('.nav-arrow')) {
-                                const dropdownIcon = document.createElement('i');
-                                dropdownIcon.className = 'fas fa-chevron-down nav-arrow';
+                            // Add dropdown arrow icon - use Font Awesome for consistency
+                            // Always use the same structure: span with icon-dropdown class containing the icon
+                            if (!saleLink.querySelector('.icon-dropdown')) {
+                                const dropdownIcon = document.createElement('span');
+                                dropdownIcon.className = 'icon-dropdown';
+                                const icon = document.createElement('i');
+                                // Use Font Awesome chevron-down for all dropdown icons
+                                icon.className = 'fas fa-chevron-down';
+                                dropdownIcon.appendChild(icon);
                                 saleLink.appendChild(dropdownIcon);
                             }
                             
-                            // Create dropdown menu (new professional style)
-                            let dropdownMenu = saleMenuItem.querySelector('.category-dropdown');
+                            // Create dropdown menu
+                            let dropdownMenu = saleMenuItem.querySelector('.category-dropdown, .dropdown-menu');
                             if (!dropdownMenu) {
-                                dropdownMenu = document.createElement('div');
-                                dropdownMenu.className = 'category-dropdown';
+                                if (useMenuItemClass) {
+                                    dropdownMenu = document.createElement('ul');
+                                    dropdownMenu.className = 'dropdown-menu sub-menu';
+                                } else {
+                                    dropdownMenu = document.createElement('div');
+                                    dropdownMenu.className = 'category-dropdown';
+                                }
                                 dropdownMenu.setAttribute('aria-labelledby', `category-${saleCategoryId}`);
                                 saleMenuItem.appendChild(dropdownMenu);
                             }
                             
                             // Clear and populate dropdown
                             dropdownMenu.innerHTML = '';
-                            const dropdownList = document.createElement('ul');
-                            dropdownList.className = 'category-dropdown-list';
+                            
+                            let dropdownList;
+                            if (useMenuItemClass) {
+                                dropdownList = dropdownMenu; // For menu-item, the ul itself is the list
+                            } else {
+                                dropdownList = document.createElement('ul');
+                                dropdownList.className = 'category-dropdown-list';
+                                dropdownMenu.appendChild(dropdownList);
+                            }
                             
                             saleCategorySubcategories
                                 .sort((a, b) => (a.ordering || 0) - (b.ordering || 0) || a.name.localeCompare(b.name))
@@ -1198,27 +1228,32 @@ async function loadCategoriesForNavbar() {
                                     const subcatId = subcat._id || subcat.id;
                                     const subcatName = subcat.name || 'Unnamed Subcategory';
                                     const subcatItem = document.createElement('li');
-                                    subcatItem.className = 'category-dropdown-item';
                                     const subcatLink = document.createElement('a');
                                     subcatLink.href = `/subcategory/${subcatId}`;
-                                    subcatLink.className = 'category-dropdown-link';
-                                    subcatLink.textContent = subcatName;
+                                    
+                                    if (useMenuItemClass) {
+                                        subcatLink.className = 'dropdown-item';
+                                        subcatLink.textContent = subcatName;
+                                    } else {
+                                        subcatItem.className = 'category-dropdown-item';
+                                        subcatLink.className = 'category-dropdown-link';
+                                        subcatLink.textContent = subcatName;
+                                    }
+                                    
                                     subcatItem.appendChild(subcatLink);
                                     dropdownList.appendChild(subcatItem);
                                 });
-                            
-                            dropdownMenu.appendChild(dropdownList);
                         }
                     } else {
                         // If no subcategories, just update the href to point to category page
-                        const saleLinkNoSub = mainMenu.querySelector('.nav-item:first-child .nav-link');
+                        const saleLinkNoSub = mainMenu.querySelector('.menu-item:first-child .cms-item-title, .nav-item:first-child .nav-link');
                         if (saleLinkNoSub && saleCategory) {
                             saleLinkNoSub.href = `/category/${saleCategoryId}`;
                         }
                     }
                 } else if (saleCategory) {
                     // If "11.11 Sale" category exists but has no subcategories, update href to category page
-                    const saleLinkNoSub = mainMenu.querySelector('.nav-item:first-child .nav-link');
+                    const saleLinkNoSub = mainMenu.querySelector('.menu-item:first-child .cms-item-title, .nav-item:first-child .nav-link');
                     if (saleLinkNoSub) {
                         saleLinkNoSub.href = `/category/${saleCategoryId}`;
                     }
@@ -1230,6 +1265,10 @@ async function loadCategoriesForNavbar() {
         
         // Track added category IDs to prevent duplicates
         const addedCategoryIds = new Set();
+        
+        // Check which structure to use (menu-item or nav-item)
+        const existingItem = mainMenu.querySelector('.menu-item, .nav-item');
+        const useMenuItemClass = existingItem && existingItem.classList.contains('menu-item');
         
         // Add all categories as menu items with subcategories dropdown
         // Only add categories that are actually in the database response
@@ -1276,31 +1315,62 @@ async function loadCategoriesForNavbar() {
                 console.log(`⊘ Category "${catName}" (ID: ${catIdStr}) has no subcategories`);
             }
             
-            // Create menu item (new professional navbar structure)
+            // Create menu item (support both .nav-item and .menu-item structures)
             const menuItem = document.createElement('li');
-            menuItem.className = hasSubcategories ? 'nav-item nav-item-category' : 'nav-item';
+            
+            if (hasSubcategories) {
+                menuItem.className = useMenuItemClass ? 'menu-item type_dropdown has-children' : 'nav-item nav-item-category';
+            } else {
+                menuItem.className = useMenuItemClass ? 'menu-item' : 'nav-item';
+            }
             
             // Create link
             const link = document.createElement('a');
             link.href = `/category/${catId}`;
-            link.className = hasSubcategories ? 'nav-link nav-link-dropdown' : 'nav-link';
+            if (useMenuItemClass) {
+                link.className = hasSubcategories ? 'cms-item-title dropdown-toggle nav-category-link' : 'cms-item-title nav-category-link';
+            } else {
+                link.className = hasSubcategories ? 'nav-link nav-link-dropdown' : 'nav-link';
+            }
             link.setAttribute('data-category-key', catName.toLowerCase().replace(/\s+/g, '-'));
             link.textContent = catName;
             
+            // Add dropdown toggle attributes for Bootstrap if using menu-item structure
+            // But we'll handle clicks manually to allow navigation
+            if (hasSubcategories && useMenuItemClass) {
+                // Don't use data-bs-toggle to avoid Bootstrap preventing navigation
+                // We'll handle dropdown via CSS hover and manual click handlers
+                link.setAttribute('aria-expanded', 'false');
+            }
+            
             if (hasSubcategories) {
-                // Add dropdown arrow icon
-                const dropdownIcon = document.createElement('i');
-                dropdownIcon.className = 'fas fa-chevron-down nav-arrow';
+                // Add dropdown arrow icon - use Font Awesome for consistency
+                // Always use the same structure: span with icon-dropdown class containing the icon
+                const dropdownIcon = document.createElement('span');
+                dropdownIcon.className = 'icon-dropdown';
+                const icon = document.createElement('i');
+                // Use Font Awesome chevron-down for all dropdown icons
+                icon.className = 'fas fa-chevron-down';
+                dropdownIcon.appendChild(icon);
                 link.appendChild(dropdownIcon);
                 
-                // Create simple list dropdown (like the reference image)
-                const dropdownMenu = document.createElement('div');
-                dropdownMenu.className = 'category-dropdown';
-                dropdownMenu.setAttribute('aria-labelledby', `category-${catId}`);
-                
-                // Create simple list
-                const dropdownList = document.createElement('ul');
-                dropdownList.className = 'category-dropdown-list';
+                // Create dropdown menu (support both structures)
+                let dropdownMenu;
+                if (useMenuItemClass) {
+                    // Bootstrap dropdown structure for .menu-item
+                    dropdownMenu = document.createElement('ul');
+                    dropdownMenu.className = 'dropdown-menu sub-menu';
+                    dropdownMenu.setAttribute('aria-labelledby', `category-${catId}`);
+                } else {
+                    // Custom dropdown structure for .nav-item
+                    dropdownMenu = document.createElement('div');
+                    dropdownMenu.className = 'category-dropdown';
+                    dropdownMenu.setAttribute('aria-labelledby', `category-${catId}`);
+                    
+                    const dropdownList = document.createElement('ul');
+                    dropdownList.className = 'category-dropdown-list';
+                    dropdownMenu.appendChild(dropdownList);
+                }
                 
                 // Sort subcategories
                 const subcategoriesSorted = subcategories.sort((a, b) => 
@@ -1312,16 +1382,27 @@ async function loadCategoriesForNavbar() {
                     const subcatId = subcat._id || subcat.id;
                     const subcatName = subcat.name || 'Unnamed Subcategory';
                     const subcatItem = document.createElement('li');
-                    subcatItem.className = 'category-dropdown-item';
                     const subcatLink = document.createElement('a');
                     subcatLink.href = `/subcategory/${subcatId}`;
-                    subcatLink.className = 'category-dropdown-link';
-                    subcatLink.textContent = subcatName.toUpperCase();
+                    
+                    if (useMenuItemClass) {
+                        subcatItem.className = '';
+                        subcatLink.className = 'dropdown-item';
+                        subcatLink.textContent = subcatName;
+                    } else {
+                        subcatItem.className = 'category-dropdown-item';
+                        subcatLink.className = 'category-dropdown-link';
+                        subcatLink.textContent = subcatName.toUpperCase();
+                    }
+                    
                     subcatItem.appendChild(subcatLink);
-                    dropdownList.appendChild(subcatItem);
+                    
+                    if (useMenuItemClass) {
+                        dropdownMenu.appendChild(subcatItem);
+                    } else {
+                        dropdownMenu.querySelector('.category-dropdown-list').appendChild(subcatItem);
+                    }
                 });
-                
-                dropdownMenu.appendChild(dropdownList);
                 
                 // Verify dropdown was created with items
                 if (subcategoriesSorted.length > 0) {
@@ -1344,18 +1425,22 @@ async function loadCategoriesForNavbar() {
         
         // Allow category links to be clickable even when they have dropdowns
         // In the new professional navbar, links are always clickable and dropdowns show on hover
-        const dropdownLinks = mainMenu.querySelectorAll('.nav-link-dropdown');
+        const dropdownLinks = mainMenu.querySelectorAll('.nav-link-dropdown, .dropdown-toggle.nav-category-link');
         dropdownLinks.forEach(link => {
             // Links are clickable - dropdowns show on hover via CSS
             link.addEventListener('click', function(e) {
-                // Only prevent default if clicking on the dropdown arrow icon
-                const arrow = link.querySelector('.nav-arrow');
-                if (arrow && (e.target === arrow || arrow.contains(e.target))) {
+                // Only prevent default if clicking on the dropdown icon itself
+                const iconDropdown = link.querySelector('.icon-dropdown');
+                if (iconDropdown && (e.target === iconDropdown || iconDropdown.contains(e.target))) {
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
                 // Otherwise, allow navigation to category page
+                // Remove Bootstrap dropdown behavior to allow normal link navigation
+                if (link.hasAttribute('data-bs-toggle')) {
+                    // Don't prevent default - allow the link to navigate
+                }
             }, true);
         });
         
@@ -1664,14 +1749,20 @@ function initialiseGlobalDelegates() {
         }
 
         // Handle dropdown toggle for departments
+        // Handle dropdown toggles - but allow navigation if clicking on the link text (not the icon)
         const dropdownToggle = event.target.closest('.dropdown-toggle');
         if (dropdownToggle) {
-            event.preventDefault();
-            const menuItem = dropdownToggle.closest('.menu-item');
-            if (menuItem) {
-                menuItem.classList.toggle('show');
+            // Only prevent default if clicking on the dropdown icon, not the link text
+            const iconDropdown = dropdownToggle.querySelector('.icon-dropdown');
+            if (iconDropdown && (event.target === iconDropdown || iconDropdown.contains(event.target))) {
+                event.preventDefault();
+                const menuItem = dropdownToggle.closest('.menu-item');
+                if (menuItem) {
+                    menuItem.classList.toggle('show');
+                }
+                return false;
             }
-            return false;
+            // If clicking on the link text itself, allow navigation (don't prevent default)
         }
 
         // Close dropdowns when clicking outside

@@ -32,7 +32,8 @@ router.get('/', async (req, res) => {
     try {
         const { 
             departmentId, 
-            categoryId, 
+            categoryId,
+            brandId,
             search,
             minPrice,
             maxPrice,
@@ -55,6 +56,10 @@ router.get('/', async (req, res) => {
 
         if (categoryId) {
             query.category = categoryId;
+        }
+
+        if (brandId) {
+            query.brand = brandId;
         }
 
         if (search) {

@@ -3,11 +3,11 @@ const mongoose = require('mongoose');
 const BannerSchema = new mongoose.Schema({
     title: {
         type: String,
-        required: true
+        default: ''
     },
     description: {
         type: String,
-        required: true
+        default: ''
     },
     image: {
         type: String,
@@ -38,27 +38,32 @@ const BannerSchema = new mongoose.Schema({
     },
     position: {
         type: String,
-        enum: [
-            'top',                      // Top of page (after hero slider)
-            'after-hero',               // Immediately after hero slider
-            'after-categories',         // After category sections
-            'middle',                   // Between product sections (default middle)
-            'after-trending',           // After trending products section
-            'after-discounted',         // After discounted products section
-            'after-new-arrival',        // After new arrival products section
-            'after-top-selling',        // After Top Selling Products section
-            'after-lingerie-collection',// After Lingerie Collection section
-            'after-product-feature-collection', // After Product Feature Collection section
-            'before-footer',            // Before footer section
-            'bottom'                    // Bottom of page
-        ],
+        // Allow dynamic positions based on section IDs (format: "after-section-{sectionId}")
+        // Also support legacy positions for backward compatibility
         required: true,
-        default: 'middle'
+        default: 'middle',
+        // Custom validator to accept any string value (no enum restriction)
+        validate: {
+            validator: function(v) {
+                return typeof v === 'string' && v.length > 0;
+            },
+            message: 'Position must be a non-empty string'
+        }
     },
     size: {
         type: String,
-        enum: ['small', 'medium', 'large', 'full-width'],
+        enum: ['small', 'medium', 'large', 'full-width', 'custom'],
         default: 'medium'
+    },
+    customWidth: {
+        type: Number,
+        min: 100,
+        max: 5000
+    },
+    customHeight: {
+        type: Number,
+        min: 50,
+        max: 2000
     },
     isActive: {
         type: Boolean,

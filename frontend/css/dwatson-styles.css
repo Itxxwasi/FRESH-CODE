@@ -619,11 +619,35 @@ a:hover {
     box-shadow: none !important;
 }
 
-.main-menu .menu-item.has-children .cms-item-title .icon-dropdown {
-    margin-left: 5px;
+.main-menu .menu-item.has-children .cms-item-title .icon-dropdown,
+.main-menu .menu-item.type_dropdown .cms-item-title .icon-dropdown {
+    margin-left: 6px !important;
     font-size: 12px;
-    background-color: transparent !important;
+    background-color: #ffffff !important;
     border: none !important;
+    border-radius: 50% !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.main-menu .menu-item.has-children .cms-item-title .icon-dropdown i,
+.main-menu .menu-item.type_dropdown .cms-item-title .icon-dropdown i {
+    font-size: 10px;
+    color: #c42525 !important;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .main-menu .menu-item.has-children .cms-item-title.dropdown-toggle {
@@ -2049,6 +2073,80 @@ a:hover {
     font-size: 14px;
     color: #666;
     margin: 0;
+}
+
+/* ============ Brand Grid Styles ============ */
+.brand-grid {
+    padding: 40px 0;
+    background-color: #f5f5f5;
+}
+
+.brand-grid-item {
+    background-color: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+}
+
+.brand-grid-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.brand-grid-link {
+    display: block;
+    text-decoration: none;
+    position: relative;
+    height: 100%;
+}
+
+.brand-grid-logo-wrapper {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    background-color: #ffffff;
+}
+
+.brand-grid-logo {
+    max-width: 100%;
+    max-height: 140px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.brand-grid-sale-banner {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #c42525;
+    padding: 10px;
+    text-align: center;
+}
+
+.brand-sale-text {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+    .brand-grid-logo-wrapper {
+        min-height: 150px;
+        padding: 15px;
+    }
+    
+    .brand-grid-logo {
+        max-height: 120px;
+    }
 }
 
 /* ============ Video Banner Styles ============ */
@@ -3610,13 +3708,12 @@ body.mobile-menu-open {
 
 .banner-promo__image {
     width: 100%;
-    min-height: 700px;
-    height: auto;
+    height: 100%;
     display: block;
     transition: transform 0.6s ease;
     object-fit: cover;
     object-position: center;
-    /* Minimum height of 700px for all banners */
+    /* Image will cover entire container */
 }
 
 .banner-promo__link:hover .banner-promo__image {
@@ -3630,8 +3727,8 @@ body.mobile-menu-open {
 }
 
 .banner-promo--small .banner-promo__media {
-    min-height: 700px;
-    height: auto;
+    height: 300px;
+    min-height: 300px;
 }
 
 .banner-promo--small .banner-promo__title {
@@ -3648,8 +3745,8 @@ body.mobile-menu-open {
 }
 
 .banner-promo--medium .banner-promo__media {
-    min-height: 700px;
-    height: auto;
+    height: 400px;
+    min-height: 400px;
 }
 
 .banner-promo--large {
@@ -3658,8 +3755,8 @@ body.mobile-menu-open {
 }
 
 .banner-promo--large .banner-promo__media {
-    min-height: 700px;
-    height: auto;
+    height: 500px;
+    min-height: 500px;
 }
 
 .banner-promo--large .banner-promo__title {
@@ -3676,9 +3773,32 @@ body.mobile-menu-open {
 }
 
 .banner-promo--full-width .banner-promo__media {
-    min-height: 700px;
-    height: auto;
+    height: 600px;
+    min-height: 600px;
     border-radius: 0;
+}
+
+/* Custom size banners - use exact dimensions specified */
+.banner-promo--custom .banner-promo__media,
+.banner-promo__media--custom {
+    /* Height and width will be set inline via style attribute - no fixed min-height */
+    min-height: unset !important;
+    height: auto !important;
+    position: relative !important;
+}
+
+.banner-promo--custom .banner-promo__image,
+.banner-promo__image--custom {
+    min-height: unset !important;
+    max-height: none !important;
+    height: 100% !important;
+    width: 100% !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
 }
 
 .banner-promo--full-width .banner-promo__title {
@@ -3689,14 +3809,22 @@ body.mobile-menu-open {
     font-size: 1.5rem;
 }
 
-/* All banner images use minimum 700px height */
+/* All banner images fill container completely */
 .banner-promo__media--small .banner-promo__image,
 .banner-promo__media--medium .banner-promo__image,
 .banner-promo__media--large .banner-promo__image,
 .banner-promo__media--full-width .banner-promo__image {
     width: 100%;
-    min-height: 700px;
-    height: auto;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Custom banner images - use exact dimensions, no min-height */
+.banner-promo__media--custom .banner-promo__image {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: unset !important;
     object-fit: cover;
     object-position: center;
 }
@@ -3731,17 +3859,30 @@ body.mobile-menu-open {
 }
 
 @media (max-width: 991px) {
-    .banner-promo--small .banner-promo__media,
-    .banner-promo--medium .banner-promo__media,
-    .banner-promo--large .banner-promo__media,
+    .banner-promo--small .banner-promo__media {
+        height: 250px;
+        min-height: 250px;
+    }
+    
+    .banner-promo--medium .banner-promo__media {
+        height: 300px;
+        min-height: 300px;
+    }
+    
+    .banner-promo--large .banner-promo__media {
+        height: 400px;
+        min-height: 400px;
+    }
+    
     .banner-promo--full-width .banner-promo__media {
-        min-height: 700px;
-        height: auto;
+        height: 400px;
+        min-height: 400px;
     }
     
     .banner-promo__image {
-        min-height: 700px;
-        height: auto;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
     
     .banner-promo--large .banner-promo__title,
@@ -3764,18 +3905,42 @@ body.mobile-menu-open {
         margin: 24px auto;
     }
     
-    /* All banners maintain 700px minimum height on mobile */
-    .banner-promo--small .banner-promo__media,
-    .banner-promo--medium .banner-promo__media,
-    .banner-promo--large .banner-promo__media,
+    /* All banners maintain proper height on mobile with cover */
+    .banner-promo--small .banner-promo__media {
+        height: 200px;
+        min-height: 200px;
+    }
+    
+    .banner-promo--medium .banner-promo__media {
+        height: 250px;
+        min-height: 250px;
+    }
+    
+    .banner-promo--large .banner-promo__media {
+        height: 300px;
+        min-height: 300px;
+    }
+    
     .banner-promo--full-width .banner-promo__media {
+        height: 350px;
+        min-height: 350px;
+    }
+    
+    .banner-promo__image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .banner-promo__image:not(.banner-promo--custom .banner-promo__image) {
         min-height: 700px;
         height: auto;
     }
     
-    .banner-promo__image {
-        min-height: 700px;
-        height: auto;
+    /* Custom banners use exact dimensions */
+    .banner-promo--custom .banner-promo__media,
+    .banner-promo--custom .banner-promo__image {
+        min-height: unset !important;
     }
     
     .banner-promo--small .banner-promo__title {

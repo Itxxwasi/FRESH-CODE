@@ -26,6 +26,17 @@ const BrandSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    discount: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100
+    },
+    discountText: {
+        type: String,
+        trim: true,
+        default: ''
+    },
     isActive: {
         type: Boolean,
         default: true

@@ -108,7 +108,7 @@ router.post('/', adminAuth, async (req, res) => {
         }
         
         // Validate type enum
-        const validTypes = ['heroSlider', 'scrollingText', 'categoryFeatured', 'categoryGrid', 'categoryCircles', 'departmentGrid', 'productTabs', 'productCarousel', 'bannerFullWidth', 'videoBanner', 'collectionLinks', 'newsletterSocial', 'brandMarquee', 'customHTML'];
+        const validTypes = ['heroSlider', 'scrollingText', 'categoryFeatured', 'categoryGrid', 'categoryCircles', 'departmentGrid', 'productTabs', 'productCarousel', 'bannerFullWidth', 'videoBanner', 'collectionLinks', 'newsletterSocial', 'brandMarquee', 'brandGrid', 'customHTML'];
         if (!validTypes.includes(payload.type)) {
             return res.status(400).json({ 
                 message: `Invalid section type: ${payload.type}. Valid types are: ${validTypes.join(', ')}`,

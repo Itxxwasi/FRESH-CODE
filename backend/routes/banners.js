@@ -97,10 +97,9 @@ router.post('/upload', adminAuth, uploadBanner, async (req, res) => {
             deleteTempFile(req.file.path);
 
             // Save to MongoDB
-            const bannerTitle = req.body.title || 'Untitled Banner';
             const banner = new Banner({
-                title: bannerTitle,
-                description: req.body.description || bannerTitle, // Use title as default description if not provided
+                title: req.body.title || '',
+                description: req.body.description || '',
                 image: secureUrl,
                 banner_type: bannerType,
                 link: req.body.link || '#',
@@ -108,6 +107,16 @@ router.post('/upload', adminAuth, uploadBanner, async (req, res) => {
                 size: req.body.size || 'medium',
                 isActive: req.body.isActive !== undefined ? req.body.isActive : true
             });
+            
+            // Handle custom dimensions
+            if (req.body.size === 'custom') {
+                if (req.body.customWidth) {
+                    banner.customWidth = parseInt(req.body.customWidth, 10);
+                }
+                if (req.body.customHeight) {
+                    banner.customHeight = parseInt(req.body.customHeight, 10);
+                }
+            }
 
             await banner.save();
 
@@ -152,10 +161,9 @@ router.post('/upload', adminAuth, uploadBanner, async (req, res) => {
         const videoType = bannerType === 'video' ? detectVideoType(secureUrl) : null;
         
         // Save to MongoDB
-        const bannerTitle = req.body.title || 'Untitled Banner';
         const banner = new Banner({
-            title: bannerTitle,
-            description: req.body.description || bannerTitle, // Use title as default description if not provided
+            title: req.body.title || '',
+            description: req.body.description || '',
             image: secureUrl,
             banner_type: bannerType,
             video_type: videoType,
@@ -164,6 +172,16 @@ router.post('/upload', adminAuth, uploadBanner, async (req, res) => {
             size: req.body.size || 'medium',
             isActive: req.body.isActive !== undefined ? req.body.isActive : true
         });
+        
+        // Handle custom dimensions
+        if (req.body.size === 'custom') {
+            if (req.body.customWidth) {
+                banner.customWidth = parseInt(req.body.customWidth, 10);
+            }
+            if (req.body.customHeight) {
+                banner.customHeight = parseInt(req.body.customHeight, 10);
+            }
+        }
 
         await banner.save();
 
@@ -228,7 +246,7 @@ async function assignImageFields(target, body) {
 router.get('/', async (req, res) => {
     try {
         const banners = await Banner.find({ isActive: true })
-            .select('title description image imageUpload link position size isActive banner_type')
+            .select('title description image imageUpload link position size customWidth customHeight isActive banner_type video_type')
             .populate('imageUpload', 'url')
             .sort({ createdAt: -1 })
             .lean(); // Faster queries
@@ -254,16 +272,18 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get banner by ID (public route for homepage sections)
+// Get banner by ID (public route for homepage sections, also used by admin for editing)
 router.get('/detail/:id', async (req, res) => {
     try {
         const banner = await Banner.findById(req.params.id)
-            .select('title description image imageUpload link position size isActive banner_type video_type')
+            .select('title description image imageUpload link position size customWidth customHeight isActive banner_type video_type')
             .populate('imageUpload', 'url')
             .lean();
-        if (!banner || !banner.isActive) {
+        if (!banner) {
             return res.status(404).json({ message: 'Banner not found' });
         }
+        // For admin editing, return even if inactive
+        // For public use, check isActive (but this route is mainly for admin)
         res.json(banner);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -295,8 +315,8 @@ router.post('/', adminAuth, async (req, res) => {
     const bannerType = detectedVideoType ? 'video' : (req.body.banner_type || 'image');
     
     const banner = new Banner({
-        title: req.body.title,
-        description: req.body.description,
+        title: req.body.title || '',
+        description: req.body.description || '',
         image: imageUrl,
         banner_type: bannerType,
         video_type: detectedVideoType,
@@ -305,6 +325,16 @@ router.post('/', adminAuth, async (req, res) => {
         size: req.body.size || 'medium',
         isActive: req.body.isActive !== undefined ? req.body.isActive : true
     });
+    
+    // Handle custom dimensions
+    if (req.body.size === 'custom') {
+        if (req.body.customWidth) {
+            banner.customWidth = parseInt(req.body.customWidth, 10);
+        }
+        if (req.body.customHeight) {
+            banner.customHeight = parseInt(req.body.customHeight, 10);
+        }
+    }
 
     try {
         await assignImageFields(banner, req.body);
@@ -348,12 +378,31 @@ router.put('/:id', adminAuth, async (req, res) => {
 
         console.log('Updating banner with position:', req.body.position);
         
-        banner.title = req.body.title || banner.title;
-        banner.description = req.body.description || banner.description;
+        // Allow empty strings to be saved (don't use || operator which treats empty string as falsy)
+        if (req.body.title !== undefined) {
+            banner.title = req.body.title || '';
+        }
+        if (req.body.description !== undefined) {
+            banner.description = req.body.description || '';
+        }
         banner.link = req.body.link || banner.link;
         banner.position = req.body.position || banner.position;
         banner.size = req.body.size || banner.size || 'medium';
         banner.isActive = req.body.isActive !== undefined ? req.body.isActive : banner.isActive;
+        
+        // Handle custom dimensions
+        if (req.body.size === 'custom') {
+            if (req.body.customWidth !== undefined) {
+                banner.customWidth = parseInt(req.body.customWidth, 10) || null;
+            }
+            if (req.body.customHeight !== undefined) {
+                banner.customHeight = parseInt(req.body.customHeight, 10) || null;
+            }
+        } else {
+            // Clear custom dimensions if not using custom size
+            banner.customWidth = null;
+            banner.customHeight = null;
+        }
 
         await assignImageFields(banner, req.body);
         

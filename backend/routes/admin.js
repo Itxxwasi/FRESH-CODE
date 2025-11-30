@@ -113,6 +113,8 @@ router.get('/products', adminAuth, async (req, res) => {
             search,
             category,
             department,
+            subcategory,
+            brand,
             minPrice,
             maxPrice,
             minDiscount,
@@ -148,6 +150,16 @@ router.get('/products', adminAuth, async (req, res) => {
         // Department filter
         if (department) {
             query.department = department;
+        }
+        
+        // Subcategory filter
+        if (subcategory) {
+            query.subcategory = subcategory;
+        }
+        
+        // Brand filter
+        if (brand) {
+            query.brand = brand;
         }
 
         // Price range filter
@@ -288,8 +300,10 @@ router.get('/products', adminAuth, async (req, res) => {
         const products = await Product.find(query)
             .populate('category', 'name')
             .populate('department', 'name')
+            .populate('subcategory', 'name')
+            .populate('brand', 'name')
             .populate('imageUpload')
-            .select('name price discount image imageUpload category department stock isFeatured isTrending isNewArrival isBestSelling isTopSelling sections collectionName createdAt')
+            .select('name price discount image imageUpload category department subcategory brand stock isFeatured isTrending isNewArrival isBestSelling isTopSelling sections collectionName createdAt')
             .limit(limit * 1)
             .skip((page - 1) * limit)
             .sort({ createdAt: -1 });
