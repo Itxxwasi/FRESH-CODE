@@ -498,12 +498,32 @@
                                             <label for="footerLogo" class="form-label">Footer Logo URL</label>
                                             <input type="text" class="form-control" id="footerLogo" name="logo" placeholder="/images/logo-white.png">
                                         </div>
+                                        <div class="mb-3">
+                                            <label for="footerLogoFile" class="form-label">Upload Logo Image</label>
+                                            <input type="file" class="form-control" id="footerLogoFile" name="footerLogoFile" accept="image/*">
+                                            <div class="form-text">Upload will override the URL if both are provided.</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="image-preview">
+                                                <img id="footerLogoPreview" alt="Footer logo preview">
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="col-md-6">
                                         <h5 class="mb-3">Payment Methods</h5>
                                         <div class="mb-3">
                                             <label for="footerPaymentMethodsImage" class="form-label">Payment Methods Image URL</label>
                                             <input type="text" class="form-control" id="footerPaymentMethodsImage" name="paymentMethodsImage" placeholder="/images/payment-methods.png">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="footerPaymentMethodsImageFile" class="form-label">Upload Payment Methods Image</label>
+                                            <input type="file" class="form-control" id="footerPaymentMethodsImageFile" name="footerPaymentMethodsImageFile" accept="image/*">
+                                            <div class="form-text">Upload will override the URL if both are provided.</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="image-preview">
+                                                <img id="footerPaymentMethodsImagePreview" alt="Payment methods preview">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

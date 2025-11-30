@@ -78,6 +78,10 @@
     
     // Load footer data if footer settings section is active on page load
     if ($('#footer-settings-section').hasClass('active')) {
+        // Initialize image fields for footer logo and payment methods
+        initImageField({ urlInput: '#footerLogo', fileInput: '#footerLogoFile', preview: '#footerLogoPreview' });
+        initImageField({ urlInput: '#footerPaymentMethodsImage', fileInput: '#footerPaymentMethodsImageFile', preview: '#footerPaymentMethodsImagePreview' });
+        
         loadFooter();
         // Attach update button handler
         $('#updateFooter').off('click.updateFooter').on('click.updateFooter', function(e) {
@@ -658,6 +662,7 @@ $('#add-brand-btn').click(function() {
     // Setup image previews
     initImageField({ urlInput: '#departmentImage', fileInput: '#departmentImageFile', preview: '#departmentImagePreview' });
     initImageField({ urlInput: '#categoryImage', fileInput: '#categoryImageFile', preview: '#categoryImagePreview' });
+    initImageField({ urlInput: '#subcategoryImage', fileInput: '#subcategoryImageFile', preview: '#subcategoryImagePreview' });
     initImageField({ urlInput: '#productImage', fileInput: '#productImageFile', preview: '#productImagePreview' });
     initImageField({ urlInput: '#sliderImage', fileInput: '#sliderImageFile', preview: '#sliderImagePreview' });
     
@@ -801,6 +806,10 @@ function loadSectionData(sectionId) {
             console.log('Loading footer settings section...');
             // Small delay to ensure DOM is ready
             setTimeout(function() {
+                // Initialize image fields for footer logo and payment methods
+                initImageField({ urlInput: '#footerLogo', fileInput: '#footerLogoFile', preview: '#footerLogoPreview' });
+                initImageField({ urlInput: '#footerPaymentMethodsImage', fileInput: '#footerPaymentMethodsImageFile', preview: '#footerPaymentMethodsImagePreview' });
+                
                 loadFooter();
                 // Attach update button handler when section is shown
                 $('#updateFooter').off('click.updateFooter').on('click.updateFooter', function(e) {
@@ -5494,7 +5503,10 @@ function loadFooter() {
         }
         
         // Populate all footer fields from database (use database values, fallback to defaults only if undefined or empty)
-        $('#footerLogo').val(footer.logo || '/images/logo-white.png');
+        const logoUrl = footer.logo || '/images/logo-white.png';
+        $('#footerLogo').val(logoUrl);
+        setImagePreview('#footerLogoPreview', logoUrl);
+        
         $('#footerAddress').val(footer.address || 'multiple branches in islamabad');
         $('#footerPhone').val(footer.phone || '+92 300 1234567');
         $('#footerEmail').val(footer.email || 'dwatsonconsultation@gmail.com');
@@ -5513,7 +5525,9 @@ function loadFooter() {
         $('#footerAboutText').val(footer.aboutText || 'D. Watson Group is the supplier of home medical and health related products designed with the needs of the user in mind. D. Watson Group was founded by its chairman, Mr. Zafar Bakhtawari in 1975. We provide a wide variety of local and imported allopathic and homeopathic medicines, drugs, cosmetics, herbal products, optical products, surgical supplies and toiletries.');
         
         // Payment methods image
-        $('#footerPaymentMethodsImage').val(footer.paymentMethodsImage || '/images/payment-methods.png');
+        const paymentMethodsUrl = footer.paymentMethodsImage || '/images/payment-methods.png';
+        $('#footerPaymentMethodsImage').val(paymentMethodsUrl);
+        setImagePreview('#footerPaymentMethodsImagePreview', paymentMethodsUrl);
         
         // Copyright text
         $('#footerCopyright').val(footer.copyrightText || '© 2025 D.Watson Pharmacy. All Rights Reserved. Website built and designed by Bilal Shah. All rights reserved by D.Watson.');
@@ -5589,7 +5603,7 @@ function loadQuickLinks(links) {
     console.log('Quick links loaded:', links.length);
 }
 
-function updateFooter() {
+async function updateFooter() {
     console.log('updateFooter function called');
     console.log('Starting to update footer data...');
     
@@ -5602,42 +5616,6 @@ function updateFooter() {
     
     console.log('Footer form elements found, proceeding with save...');
     
-    // Collect quick links
-    const quickLinks = [];
-    $('.quick-link-item').each(function() {
-        const title = $(this).find('.quick-link-title').val();
-        const url = $(this).find('.quick-link-url').val();
-        if (title && url) {
-            quickLinks.push({ title: title.trim(), url: url.trim() });
-        }
-    });
-    
-    console.log('Collected quick links:', quickLinks.length);
-
-    // Collect all footer data
-    const footerData = {
-        logo: $('#footerLogo').val() || '/images/logo-white.png',
-        address: $('#footerAddress').val() || '',
-        phone: $('#footerPhone').val() || '',
-        email: $('#footerEmail').val() || '',
-        contactInfoTitle: $('#contactInfoTitle').val() || 'Contact Info',
-        quickLinksTitle: $('#quickLinksTitle').val() || 'Quick Links',
-        quickLinks: quickLinks,
-        socialMedia: {
-            facebook: $('#socialFacebook').val() || '',
-            twitter: $('#socialTwitter').val() || '',
-            instagram: $('#socialInstagram').val() || '',
-            linkedin: $('#socialLinkedin').val() || '',
-            youtube: $('#socialYoutube').val() || '',
-            whatsapp: $('#socialWhatsapp').val() || ''
-        },
-        aboutText: $('#footerAboutText').val() || '',
-        paymentMethodsImage: $('#footerPaymentMethodsImage').val() || '/images/payment-methods.png',
-        copyrightText: $('#footerCopyright').val() || ''
-    };
-    
-    console.log('Footer data to save:', JSON.stringify(footerData, null, 2));
-    
     // Show loading indicator
     const updateBtn = $('#updateFooter');
     if (!updateBtn.length) {
@@ -5648,46 +5626,107 @@ function updateFooter() {
     
     const originalText = updateBtn.html();
     updateBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Updating...');
-    console.log('Update button disabled, making AJAX request...');
+    console.log('Update button disabled, starting image uploads...');
     
-    $.ajax({
-        url: '/api/admin/footer',
-        method: 'PUT',
-        contentType: 'application/json',
-        headers: {
-            'x-auth-token': localStorage.getItem('token')
-        },
-        data: JSON.stringify(footerData)
-    })
-    .done(function(response) {
-        console.log('Footer saved successfully to database:', response);
-        showAlert('Footer updated successfully!', 'success');
-        
-        // Reload footer data to ensure sync
-        setTimeout(function() {
-            loadFooter();
-        }, 500);
-    })
-    .fail(function(xhr) {
-        console.error('Error saving footer:', xhr);
-        console.error('Status:', xhr.status);
-        console.error('Response:', xhr.responseJSON);
-        
-        let errorMsg = 'Error updating footer';
-        if (xhr.status === 401) {
-            errorMsg = 'Authentication failed. Please login again.';
-        } else if (xhr.status === 403) {
-            errorMsg = 'You do not have permission to update footer.';
-        } else if (xhr.responseJSON && xhr.responseJSON.message) {
-            errorMsg = xhr.responseJSON.message;
+    try {
+        // Upload footer logo image if provided
+        let logoUrl = ($('#footerLogo').val() || '').trim();
+        const uploadedLogo = await uploadImageIfNeeded('#footerLogoFile', 'footer');
+        if (uploadedLogo) {
+            logoUrl = uploadedLogo.url;
+            $('#footerLogo').val(logoUrl);
+            setImagePreview('#footerLogoPreview', logoUrl);
         }
         
-        showAlert(errorMsg, 'danger');
-    })
-    .always(function() {
-        // Re-enable update button
+        // Upload payment methods image if provided
+        let paymentMethodsUrl = ($('#footerPaymentMethodsImage').val() || '').trim();
+        const uploadedPaymentMethods = await uploadImageIfNeeded('#footerPaymentMethodsImageFile', 'footer');
+        if (uploadedPaymentMethods) {
+            paymentMethodsUrl = uploadedPaymentMethods.url;
+            $('#footerPaymentMethodsImage').val(paymentMethodsUrl);
+            setImagePreview('#footerPaymentMethodsImagePreview', paymentMethodsUrl);
+        }
+        
+        // Collect quick links
+        const quickLinks = [];
+        $('.quick-link-item').each(function() {
+            const title = $(this).find('.quick-link-title').val();
+            const url = $(this).find('.quick-link-url').val();
+            if (title && url) {
+                quickLinks.push({ title: title.trim(), url: url.trim() });
+            }
+        });
+        
+        console.log('Collected quick links:', quickLinks.length);
+
+        // Collect all footer data
+        const footerData = {
+            logo: logoUrl || '/images/logo-white.png',
+            address: $('#footerAddress').val() || '',
+            phone: $('#footerPhone').val() || '',
+            email: $('#footerEmail').val() || '',
+            contactInfoTitle: $('#contactInfoTitle').val() || 'Contact Info',
+            quickLinksTitle: $('#quickLinksTitle').val() || 'Quick Links',
+            quickLinks: quickLinks,
+            socialMedia: {
+                facebook: $('#socialFacebook').val() || '',
+                twitter: $('#socialTwitter').val() || '',
+                instagram: $('#socialInstagram').val() || '',
+                linkedin: $('#socialLinkedin').val() || '',
+                youtube: $('#socialYoutube').val() || '',
+                whatsapp: $('#socialWhatsapp').val() || ''
+            },
+            aboutText: $('#footerAboutText').val() || '',
+            paymentMethodsImage: paymentMethodsUrl || '/images/payment-methods.png',
+            copyrightText: $('#footerCopyright').val() || ''
+        };
+        
+        console.log('Footer data to save:', JSON.stringify(footerData, null, 2));
+        console.log('Making AJAX request...');
+        
+        $.ajax({
+            url: '/api/admin/footer',
+            method: 'PUT',
+            contentType: 'application/json',
+            headers: {
+                'x-auth-token': localStorage.getItem('token')
+            },
+            data: JSON.stringify(footerData)
+        })
+        .done(function(response) {
+            console.log('Footer saved successfully to database:', response);
+            showAlert('Footer updated successfully!', 'success');
+            
+            // Reload footer data to ensure sync
+            setTimeout(function() {
+                loadFooter();
+            }, 500);
+        })
+        .fail(function(xhr) {
+            console.error('Error saving footer:', xhr);
+            console.error('Status:', xhr.status);
+            console.error('Response:', xhr.responseJSON);
+            
+            let errorMsg = 'Error updating footer';
+            if (xhr.status === 401) {
+                errorMsg = 'Authentication failed. Please login again.';
+            } else if (xhr.status === 403) {
+                errorMsg = 'You do not have permission to update footer.';
+            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMsg = xhr.responseJSON.message;
+            }
+            
+            showAlert(errorMsg, 'danger');
+        })
+        .always(function() {
+            // Re-enable update button
+            updateBtn.prop('disabled', false).html(originalText);
+        });
+    } catch (error) {
+        console.error('Error in updateFooter:', error);
+        showAlert(error.message || 'Error updating footer. Please try again.', 'danger');
         updateBtn.prop('disabled', false).html(originalText);
-    });
+    }
 }
 
 // Keep saveFooter as alias for backward compatibility
