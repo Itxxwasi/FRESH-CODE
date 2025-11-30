@@ -23,11 +23,7 @@
       "size": "basic"
     }
   },
-  "addons": [
-    {
-      "plan": "mongolab:sandbox"
-    }
-  ],
+  "addons": [], 
   "env": {
     "NODE_ENV": {
       "description": "Node environment (development or production)",
@@ -40,9 +36,9 @@
       "required": false
     },
     "MONGODB_URI": {
-      "description": "MongoDB connection string. Get from MongoDB Atlas or use mongolab addon",
+      "description": "MongoDB connection string. MUST be provided from MongoDB Atlas",
       "value": "",
-      "required": true
+      "required": false
     },
     "LIVE_MONGODB_URI": {
       "description": "Optional: Live/Main database URI for syncing data between databases",
@@ -50,9 +46,9 @@
       "required": false
     },
     "JWT_SECRET": {
-      "description": "Secret key for JWT token generation. Use a strong random string (min 32 characters)",
+      "description": "Secret key for JWT token generation",
       "value": "f56f4d1a70c09d6efc9e45b269f86f20deedabc22a12c85e841946fad5ace2f19c611a3069c8cbe1b9b54cd4dbc2649f79aa4c3880b0b46a640a3fd232049273",
-      "required": true,
+      "required": false,
       "generator": "secret"
     },
     "ADMIN_EMAIL": {
@@ -61,62 +57,62 @@
       "required": false
     },
     "ADMIN_PASSWORD": {
-      "description": "Admin user password (change this in production!)",
+      "description": "Admin user password",
       "value": "admin123",
       "required": false
     },
     "CLOUDINARY_CLOUD_NAME": {
-      "description": "Cloudinary cloud name. Get from https://cloudinary.com/console",
+      "description": "Cloudinary cloud name",
       "value": "",
-      "required": true
+      "required": false
     },
     "CLOUDINARY_API_KEY": {
-      "description": "Cloudinary API key. Get from https://cloudinary.com/console",
+      "description": "Cloudinary API key",
       "value": "",
-      "required": true
+      "required": false
     },
     "CLOUDINARY_API_SECRET": {
-      "description": "Cloudinary API secret. Get from https://cloudinary.com/console",
+      "description": "Cloudinary API secret",
       "value": "",
-      "required": true
+      "required": false
     },
     "SENDGRID_API_KEY": {
-      "description": "Optional: SendGrid API key for email delivery (recommended)",
+      "description": "Optional: SendGrid API key",
       "value": "",
       "required": false
     },
     "SMTP_HOST": {
-      "description": "Optional: SMTP host for email (e.g., smtp.gmail.com)",
+      "description": "Optional: SMTP host",
       "value": "",
       "required": false
     },
     "SMTP_PORT": {
-      "description": "Optional: SMTP port (usually 587 or 465)",
+      "description": "SMTP port",
       "value": "587",
       "required": false
     },
     "SMTP_SECURE": {
-      "description": "Optional: Use secure SMTP connection (true for port 465, false for others)",
+      "description": "Use secure SMTP connection?",
       "value": "false",
       "required": false
     },
     "SMTP_USER": {
-      "description": "Optional: SMTP username/email",
+      "description": "SMTP username/email",
       "value": "",
       "required": false
     },
     "SMTP_PASS": {
-      "description": "Optional: SMTP password or app password",
+      "description": "SMTP password or app password",
       "value": "",
       "required": false
     },
     "EMAIL_USER": {
-      "description": "Optional: Fallback email user for Gmail (requires App Password)",
+      "description": "Gmail fallback",
       "value": "dwatsononline.co@gmail.com",
       "required": false
     },
     "EMAIL_PASS": {
-      "description": "Optional: Fallback email password/app password for Gmail",
+      "description": "Gmail app password",
       "value": "",
       "required": false
     }
@@ -125,4 +121,3 @@
     "postdeploy": "echo 'Deployment successful! Please configure your environment variables in Heroku dashboard.'"
   }
 }
-
