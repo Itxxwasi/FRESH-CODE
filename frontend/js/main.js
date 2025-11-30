@@ -103,6 +103,7 @@ const SECTION_RENDERERS = {
                     initialiseGlobalDelegates();
                     initialiseMobileMenu();
                     initialiseCategoryNavLinks();
+                    initializeSearch();
                 }).catch(err => console.warn('Content loading error:', err));
             });
             
@@ -1700,6 +1701,275 @@ function initialiseNewsletter() {
         alert(`Thank you for subscribing with email: ${email}`);
         if (emailInput) emailInput.value = '';
     });
+}
+
+// Global search functionality
+let searchTimeout = null;
+let currentSearchAbortController = null;
+
+function initializeSearch() {
+    const headerSearchInput = document.getElementById('headerSearchInput');
+    const searchPopupInput = document.getElementById('searchInput');
+    
+    if (headerSearchInput) {
+        setupSearchInput(headerSearchInput, 'headerSearchDropdown');
+    }
+    
+    if (searchPopupInput) {
+        setupSearchInput(searchPopupInput, 'searchPopupDropdown');
+    }
+}
+
+function setupSearchInput(input, dropdownId) {
+    const dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+    
+    // Debounced search on input
+    input.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        
+        // Clear previous timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        // Cancel previous request
+        if (currentSearchAbortController) {
+            currentSearchAbortController.abort();
+        }
+        
+        if (query.length < 2) {
+            dropdown.innerHTML = '';
+            dropdown.classList.remove('active');
+            return;
+        }
+        
+        // Debounce search
+        searchTimeout = setTimeout(() => {
+            performSearch(query, dropdown);
+        }, 300);
+    });
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.remove('active');
+        }
+    });
+    
+    // Handle keyboard navigation
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const firstItem = dropdown.querySelector('.search-result-item');
+            if (firstItem) {
+                firstItem.focus();
+            }
+        } else if (e.key === 'Escape') {
+            dropdown.classList.remove('active');
+            input.blur();
+        }
+    });
+    
+    // Allow Enter to submit form if no results are focused
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !dropdown.querySelector('.search-result-item:focus')) {
+            // Let form submit normally
+            return true;
+        }
+    });
+}
+
+async function performSearch(query, dropdown) {
+    if (!query || query.length < 2) {
+        dropdown.innerHTML = '';
+        dropdown.classList.remove('active');
+        return;
+    }
+    
+    // Show loading state
+    dropdown.innerHTML = '<div class="search-loading">Searching...</div>';
+    dropdown.classList.add('active');
+    
+    // Create new abort controller
+    currentSearchAbortController = new AbortController();
+    
+    try {
+        const searchUrl = `/api/search?q=${encodeURIComponent(query)}&limit=10`;
+        console.log('🔍 Frontend: Searching for:', query);
+        console.log('🔍 Frontend: Search URL:', searchUrl);
+        
+        const response = await fetch(searchUrl, {
+            signal: currentSearchAbortController.signal
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('🔍 Search API error:', response.status, errorText);
+            throw new Error(`Search failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('🔍 Frontend: Search results:', data);
+        console.log('🔍 Frontend: Products found:', data.products?.length || 0);
+        console.log('🔍 Frontend: Total results:', data.total || 0);
+        
+        renderSearchResults(data, dropdown);
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            // Request was cancelled, ignore
+            console.log('🔍 Search cancelled');
+            return;
+        }
+        console.error('🔍 Search error:', error);
+        dropdown.innerHTML = '<div class="search-error">Error searching. Please try again.</div>';
+        dropdown.classList.add('active');
+    }
+}
+
+function renderSearchResults(data, dropdown) {
+    const { products = [], categories = [], departments = [], subcategories = [], total = 0 } = data;
+    
+    console.log('🔍 Rendering results - Products:', products.length, 'Total:', total);
+    
+    if (!products || products.length === 0) {
+        if (total === 0) {
+            dropdown.innerHTML = '<div class="search-no-results">No results found</div>';
+            dropdown.classList.add('active');
+            return;
+        }
+    }
+    
+    let html = '<div class="search-results">';
+    
+    // Products - Show first (main focus like reference image)
+    if (products && products.length > 0) {
+        console.log('🔍 Rendering', products.length, 'products');
+        products.forEach(product => {
+            const imageUrl = product.image || window.globalFallbackImage || '';
+            let priceHtml = '';
+            const productPrice = product.price || 0;
+            const productDiscount = product.discount || 0;
+            
+            if (productDiscount > 0 && productPrice > 0) {
+                const originalPrice = productPrice;
+                const discountedPrice = productPrice * (1 - productDiscount / 100);
+                priceHtml = `
+                    <div class="search-price">
+                        <span class="original-price">Rs.${originalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span class="discounted-price">Rs.${discountedPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                `;
+            } else if (productPrice > 0) {
+                priceHtml = `<div class="search-price">Rs.${productPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`;
+            } else {
+                priceHtml = '<div class="search-price">Price not available</div>';
+            }
+            
+            html += `
+                <a href="${product.url}" class="search-result-item">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${escapeHtml(product.name)}" class="search-result-image" onerror="this.src='${window.globalFallbackImage || ''}'">` : '<div class="search-result-image-placeholder"></div>'}
+                    <div class="search-result-content">
+                        <div class="search-result-name">${escapeHtml(product.name)}</div>
+                        ${priceHtml}
+                    </div>
+                </a>
+            `;
+        });
+    }
+    
+    // Categories - Show after products if no products found
+    if (products.length === 0 && categories.length > 0) {
+        categories.forEach(category => {
+            const imageUrl = category.image || '';
+            html += `
+                <a href="${category.url}" class="search-result-item">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${escapeHtml(category.name)}" class="search-result-image">` : '<div class="search-result-image-placeholder"></div>'}
+                    <div class="search-result-content">
+                        <div class="search-result-name">${escapeHtml(category.name)}</div>
+                        <div class="search-result-type">Category</div>
+                    </div>
+                </a>
+            `;
+        });
+    }
+    
+    // Departments - Show if no products or categories
+    if (products.length === 0 && categories.length === 0 && departments.length > 0) {
+        departments.forEach(department => {
+            const imageUrl = department.image || '';
+            html += `
+                <a href="${department.url}" class="search-result-item">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${escapeHtml(department.name)}" class="search-result-image">` : '<div class="search-result-image-placeholder"></div>'}
+                    <div class="search-result-content">
+                        <div class="search-result-name">${escapeHtml(department.name)}</div>
+                        <div class="search-result-type">Department</div>
+                    </div>
+                </a>
+            `;
+        });
+    }
+    
+    // Subcategories - Show if no other results
+    if (products.length === 0 && categories.length === 0 && departments.length === 0 && subcategories.length > 0) {
+        subcategories.forEach(subcategory => {
+            const imageUrl = subcategory.image || '';
+            html += `
+                <a href="${subcategory.url}" class="search-result-item">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${escapeHtml(subcategory.name)}" class="search-result-image">` : '<div class="search-result-image-placeholder"></div>'}
+                    <div class="search-result-content">
+                        <div class="search-result-name">${escapeHtml(subcategory.name)}</div>
+                        <div class="search-result-type">Subcategory</div>
+                    </div>
+                </a>
+            `;
+        });
+    }
+    
+    html += '</div>';
+    dropdown.innerHTML = html;
+    dropdown.classList.add('active');
+    
+    // Debug: Verify dropdown is visible
+    console.log('🔍 Dropdown element:', dropdown);
+    console.log('🔍 Dropdown has active class:', dropdown.classList.contains('active'));
+    console.log('🔍 Dropdown computed display:', window.getComputedStyle(dropdown).display);
+    console.log('🔍 Dropdown computed z-index:', window.getComputedStyle(dropdown).zIndex);
+    console.log('🔍 Dropdown HTML length:', dropdown.innerHTML.length);
+    
+    // Add keyboard navigation to result items
+    const resultItems = dropdown.querySelectorAll('.search-result-item');
+    resultItems.forEach((item, index) => {
+        item.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const next = resultItems[index + 1];
+                if (next) next.focus();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = resultItems[index - 1];
+                if (prev) {
+                    prev.focus();
+                } else {
+                    // Return focus to input
+                    const input = dropdown.closest('.search-input-wrapper')?.querySelector('input');
+                    if (input) input.focus();
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                item.click();
+            }
+        });
+        
+        // Make items focusable
+        item.setAttribute('tabindex', '0');
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function initialiseGlobalDelegates() {

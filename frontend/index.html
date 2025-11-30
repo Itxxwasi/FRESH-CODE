@@ -120,10 +120,13 @@
                         <div class="header-search-left hide-mobile col-md-3">
                             <div class="header-search-wrapper">
                                 <form action="/products.html" method="get" class="header-search-form">
-                                    <input type="text" name="search" class="header-search-input" placeholder="Search for products ..." autocomplete="off">
-                                    <button type="submit" class="header-search-button" aria-label="Search">
-                                        <i class="icon-search"></i>
-                                    </button>
+                                    <div class="search-input-wrapper">
+                                        <input type="text" name="search" id="headerSearchInput" class="header-search-input" placeholder="Search for products ..." autocomplete="off">
+                                        <button type="submit" class="header-search-button" aria-label="Search">
+                                            <i class="icon-search"></i>
+                                        </button>
+                                        <div id="headerSearchDropdown" class="search-dropdown"></div>
+                                    </div>
                                 </form>
                             </div>
                         </div>
@@ -325,8 +328,11 @@
             <div class="push-side-panel__content">
                 <h3>Search Products</h3>
                 <form action="/products.html" method="get" class="search-form">
-                    <input type="text" name="search" id="searchInput" placeholder="Search for products..." autocomplete="off">
-                    <button type="submit"><i class="icon-search"></i></button>
+                    <div class="search-input-wrapper">
+                        <input type="text" name="search" id="searchInput" placeholder="Search for products..." autocomplete="off">
+                        <button type="submit"><i class="icon-search"></i></button>
+                        <div id="searchPopupDropdown" class="search-dropdown"></div>
+                    </div>
                 </form>
             </div>
         </div>

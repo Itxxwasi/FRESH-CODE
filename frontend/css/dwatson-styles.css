@@ -345,6 +345,7 @@ a:hover {
     display: flex;
     align-items: center;
     width: 100%;
+    z-index: 1000; /* Ensure wrapper is above other header elements */
 }
 
 .header-search-form {
@@ -353,11 +354,12 @@ a:hover {
     position: relative;
     background-color: #ffffff; /* White background */
     border-radius: 8px; /* Rounded corners */
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to allow dropdown to show */
     border: 1px solid #e5e5e5;
     transition: all 0.24s linear;
     width: 100%;
     max-width: 320px;
+    z-index: 100; /* Ensure form is above other elements */
 }
 
 .header-search-form:hover {
@@ -396,6 +398,184 @@ a:hover {
 
 .header-search-button:hover {
     color: #666666;
+}
+
+/* Search Input Wrapper with Dropdown */
+.search-input-wrapper {
+    position: relative;
+    width: 100%;
+    z-index: 1001; /* Higher than form */
+}
+
+/* Search Dropdown */
+.search-dropdown {
+    position: absolute;
+    top: calc(100% + 4px); /* Add small gap below input */
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px; /* Full rounded corners */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    max-height: 600px;
+    overflow-y: auto;
+    z-index: 10000; /* Very high z-index to appear above everything */
+    display: none;
+    width: 100%;
+    margin-top: 0;
+}
+
+.search-dropdown.active {
+    display: block;
+}
+
+.search-results {
+    padding: 0;
+}
+
+.search-section {
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+}
+
+.search-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.search-section-title {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #666666;
+    letter-spacing: 0.5px;
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    text-decoration: none;
+    color: #1a1a1a;
+    transition: background-color 0.2s ease;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover,
+.search-result-item:focus {
+    background-color: #f8f8f8;
+    outline: none;
+}
+
+.search-result-image {
+    width: 70px;
+    height: 70px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-right: 15px;
+    flex-shrink: 0;
+    background-color: #f5f5f5;
+}
+
+.search-result-image-placeholder {
+    width: 70px;
+    height: 70px;
+    border-radius: 4px;
+    margin-right: 15px;
+    flex-shrink: 0;
+    background-color: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-result-image-placeholder::before {
+    content: '📦';
+    font-size: 24px;
+    opacity: 0.3;
+}
+
+.search-result-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.search-result-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-result-type {
+    font-size: 12px;
+    color: #666666;
+    text-transform: capitalize;
+}
+
+.search-price {
+    font-size: 14px;
+    color: #1a1a1a;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.search-price .original-price {
+    text-decoration: line-through;
+    color: #999999;
+    font-weight: 400;
+    font-size: 13px;
+}
+
+.search-price .discounted-price {
+    color: #1a1a1a;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.search-loading,
+.search-error,
+.search-no-results {
+    padding: 20px 16px;
+    text-align: center;
+    color: #666666;
+    font-size: 14px;
+}
+
+.search-error {
+    color: #d93939;
+}
+
+/* Search Popup Dropdown */
+#searchPopupDropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 8px;
 }
 
 .header-control li {
@@ -2882,6 +3062,10 @@ a:hover {
     position: relative;
 }
 
+.search-form .search-input-wrapper {
+    position: relative;
+}
+
 .search-form input {
     width: 100%;
     padding: 15px 50px 15px 20px;
@@ -2901,10 +3085,17 @@ a:hover {
     font-size: 20px;
     cursor: pointer;
     padding: 10px 15px;
+    z-index: 1;
 }
 
 .search-form button:hover {
     color: var(--color-link-hover);
+}
+
+/* Search dropdown in popup */
+#searchPopupDropdown {
+    border-radius: 8px;
+    margin-top: 8px;
 }
 
 /* Badge counters for all header icons */

@@ -29,6 +29,7 @@ const subcategoriesPublicRoutes = require('./routes/subcategories-public');
 const productsPublicRoutes = require('./routes/products-public');
 const contactRoutes = require('./routes/contact');
 const footerRoutes = require('./routes/footer');
+const searchRoutes = require('./routes/search');
 
 // Initialize Express app
 const app = express();
@@ -255,6 +256,7 @@ app.use('/api/public/products', productsPublicRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/footer', footerRoutes);
 app.use('/api/admin/footer', footerRoutes);
+app.use('/api/search', searchRoutes);
 
 // Admin dashboard route
 app.get('/admin', (req, res) => {
