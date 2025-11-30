@@ -6,6 +6,7 @@ const Slider = require('../models/Slider');
 const Banner = require('../models/Banner');
 const Category = require('../models/Category');
 const Department = require('../models/Department');
+const Subcategory = require('../models/Subcategory');
 const Product = require('../models/Product');
 
 const router = express.Router();
@@ -13,6 +14,7 @@ const router = express.Router();
 // Public route - Get all active published sections for homepage
 router.get('/public', async (req, res) => {
     try {
+        console.log('Fetching public homepage sections...');
         const sections = await HomepageSection.find({
             isActive: true,
             isPublished: true
@@ -20,6 +22,15 @@ router.get('/public', async (req, res) => {
         .sort({ ordering: 1, createdAt: 1 })
         .select('-createdBy -updatedBy') // Exclude unnecessary fields for faster response
         .lean(); // Use lean() for faster queries (returns plain JS objects)
+        
+        console.log(`Found ${sections.length} active and published sections:`, sections.map(s => ({ 
+            id: s._id, 
+            name: s.name, 
+            type: s.type, 
+            ordering: s.ordering,
+            isActive: s.isActive,
+            isPublished: s.isPublished 
+        })));
         
         // For now, keep this response fresh so changes in admin appear immediately
         res.set({
@@ -29,6 +40,7 @@ router.get('/public', async (req, res) => {
         });
         res.json(sections);
     } catch (error) {
+        console.error('Error fetching public homepage sections:', error);
         res.status(500).json({ message: error.message });
     }
 });
@@ -108,7 +120,7 @@ router.post('/', adminAuth, async (req, res) => {
         }
         
         // Validate type enum
-        const validTypes = ['heroSlider', 'scrollingText', 'categoryFeatured', 'categoryGrid', 'categoryCircles', 'departmentGrid', 'productTabs', 'productCarousel', 'bannerFullWidth', 'videoBanner', 'collectionLinks', 'newsletterSocial', 'brandMarquee', 'brandGrid', 'customHTML'];
+        const validTypes = ['heroSlider', 'scrollingText', 'categoryFeatured', 'categoryGrid', 'categoryCircles', 'departmentGrid', 'productTabs', 'productCarousel', 'newArrivals', 'topSelling', 'featuredCollections', 'subcategoryGrid', 'bannerFullWidth', 'videoBanner', 'collectionLinks', 'newsletterSocial', 'brandMarquee', 'brandGrid', 'customHTML'];
         if (!validTypes.includes(payload.type)) {
             return res.status(400).json({ 
                 message: `Invalid section type: ${payload.type}. Valid types are: ${validTypes.join(', ')}`,
@@ -173,12 +185,25 @@ router.put('/:id', adminAuth, async (req, res) => {
             updatedBy: req.user?.id
         };
         
+        // Validate type enum if type is being updated
+        if (payload.type !== undefined) {
+            const validTypes = ['heroSlider', 'scrollingText', 'categoryFeatured', 'categoryGrid', 'categoryCircles', 'departmentGrid', 'productTabs', 'productCarousel', 'newArrivals', 'topSelling', 'featuredCollections', 'subcategoryGrid', 'bannerFullWidth', 'videoBanner', 'collectionLinks', 'newsletterSocial', 'brandMarquee', 'brandGrid', 'customHTML'];
+            if (!validTypes.includes(payload.type)) {
+                return res.status(400).json({ 
+                    message: `Invalid section type: ${payload.type}. Valid types are: ${validTypes.join(', ')}`,
+                    receivedType: payload.type
+                });
+            }
+        }
+        
         // Remove undefined fields
         Object.keys(payload).forEach(key => {
             if (payload[key] === undefined) {
                 delete payload[key];
             }
         });
+        
+        console.log('Updating homepage section with payload:', JSON.stringify(payload, null, 2));
         
         const section = await HomepageSection.findByIdAndUpdate(
             req.params.id,
@@ -193,6 +218,7 @@ router.put('/:id', adminAuth, async (req, res) => {
         res.json(section);
     } catch (error) {
         console.error('Error updating homepage section:', error);
+        console.error('Error stack:', error.stack);
         
         // Handle validation errors
         if (error.name === 'ValidationError') {
@@ -264,6 +290,112 @@ router.delete('/:id', adminAuth, async (req, res) => {
     }
 });
 
+// Public route - Get section data for published sections
+router.get('/:id/data/public', async (req, res) => {
+    try {
+        const section = await HomepageSection.findById(req.params.id);
+        if (!section) {
+            return res.status(404).json({ message: 'Section not found' });
+        }
+        
+        // Only allow access to published and active sections
+        if (!section.isActive || !section.isPublished) {
+            return res.status(403).json({ message: 'Section is not published' });
+        }
+        
+        let data = {};
+        
+        switch (section.type) {
+            case 'newArrivals':
+                // Get new arrival products from ALL categories (don't filter by categoryId)
+                const newArrivalFilters = { isActive: true, isNewArrival: true };
+                // Removed categoryId filter to show products from all categories
+                // if (section.config?.categoryId) {
+                //     newArrivalFilters.category = section.config.categoryId;
+                // }
+                const newArrivalProducts = await Product.find(newArrivalFilters)
+                    .populate('category', 'name _id')
+                    .populate('department', 'name _id')
+                    .populate('imageUpload')
+                    .limit(section.config?.limit || 100) // Increased limit to get products from all categories
+                    .sort({ createdAt: -1 });
+                console.log(`New Arrivals (Admin): Found ${newArrivalProducts.length} products from all categories`);
+                data = { products: newArrivalProducts };
+                break;
+                
+            case 'topSelling':
+                // Get top selling products
+                const topSellingFilters = { isActive: true, isTopSelling: true };
+                if (section.config?.categoryId) {
+                    topSellingFilters.category = section.config.categoryId;
+                }
+                const topSellingProducts = await Product.find(topSellingFilters)
+                    .populate('category', 'name')
+                    .populate('department', 'name')
+                    .populate('imageUpload')
+                    .limit(section.config?.limit || 20)
+                    .sort({ createdAt: -1 });
+                data = { products: topSellingProducts };
+                break;
+                
+            case 'featuredCollections':
+                // Get all active subcategories
+                const subcategories = await Subcategory.find({ isActive: true })
+                    .populate('category', 'name _id')
+                    .populate('imageUpload')
+                    .sort({ ordering: 1, name: 1 });
+                data = { subcategories };
+                break;
+                
+            case 'subcategoryGrid':
+                // Get selected subcategories for grid (6 boxes) and button strip
+                const gridSubcategoryIds = section.config?.subcategoryIds || [];
+                const buttonSubcategoryIds = section.config?.buttonSubcategoryIds || [];
+                
+                // Fetch grid subcategories (limit to 6)
+                const gridSubcategories = gridSubcategoryIds.length > 0
+                    ? await Subcategory.find({ 
+                        _id: { $in: gridSubcategoryIds },
+                        isActive: true 
+                    })
+                    .populate('category', 'name _id')
+                    .populate('imageUpload')
+                    .limit(6)
+                    .lean()
+                    : [];
+                
+                // Fetch button subcategories (for red strip below)
+                const buttonSubcategories = buttonSubcategoryIds.length > 0
+                    ? await Subcategory.find({ 
+                        _id: { $in: buttonSubcategoryIds },
+                        isActive: true 
+                    })
+                    .populate('category', 'name _id')
+                    .sort({ name: 1 })
+                    .lean()
+                    : await Subcategory.find({ isActive: true })
+                    .populate('category', 'name _id')
+                    .sort({ name: 1 })
+                    .limit(20)
+                    .lean();
+                
+                data = { 
+                    gridSubcategories: gridSubcategories.slice(0, 6), // Ensure max 6
+                    buttonSubcategories 
+                };
+                break;
+                
+            default:
+                // For other section types, return empty data
+                data = {};
+        }
+        
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Admin route - Get section data (sliders, categories, products, etc.)
 router.get('/:id/data', adminAuth, async (req, res) => {
     try {
@@ -327,6 +459,85 @@ router.get('/:id/data', adminAuth, async (req, res) => {
                     .limit(section.config?.limit || 20)
                     .sort({ createdAt: -1 });
                 data = { products };
+                break;
+                
+            case 'newArrivals':
+                // Get new arrival products from ALL categories (don't filter by categoryId)
+                const newArrivalFilters = { isActive: true, isNewArrival: true };
+                // Removed categoryId filter to show products from all categories
+                // if (section.config?.categoryId) {
+                //     newArrivalFilters.category = section.config.categoryId;
+                // }
+                const newArrivalProducts = await Product.find(newArrivalFilters)
+                    .populate('category', 'name _id')
+                    .populate('department', 'name _id')
+                    .populate('imageUpload')
+                    .limit(section.config?.limit || 100) // Increased limit to get products from all categories
+                    .sort({ createdAt: -1 });
+                console.log(`New Arrivals (Admin): Found ${newArrivalProducts.length} products from all categories`);
+                data = { products: newArrivalProducts };
+                break;
+                
+            case 'topSelling':
+                // Get top selling products
+                const topSellingFilters = { isActive: true, isTopSelling: true };
+                if (section.config?.categoryId) {
+                    topSellingFilters.category = section.config.categoryId;
+                }
+                const topSellingProducts = await Product.find(topSellingFilters)
+                    .populate('category', 'name')
+                    .populate('department', 'name')
+                    .populate('imageUpload')
+                    .limit(section.config?.limit || 20)
+                    .sort({ createdAt: -1 });
+                data = { products: topSellingProducts };
+                break;
+                
+            case 'featuredCollections':
+                // Get all active subcategories
+                const subcategories = await Subcategory.find({ isActive: true })
+                    .populate('category', 'name _id')
+                    .populate('imageUpload')
+                    .sort({ ordering: 1, name: 1 });
+                data = { subcategories };
+                break;
+                
+            case 'subcategoryGrid':
+                // Get selected subcategories for grid (6 boxes) and button strip
+                const gridSubcategoryIds = section.config?.subcategoryIds || [];
+                const buttonSubcategoryIds = section.config?.buttonSubcategoryIds || [];
+                
+                // Fetch grid subcategories (limit to 6)
+                const gridSubcategories = gridSubcategoryIds.length > 0
+                    ? await Subcategory.find({ 
+                        _id: { $in: gridSubcategoryIds },
+                        isActive: true 
+                    })
+                    .populate('category', 'name _id')
+                    .populate('imageUpload')
+                    .limit(6)
+                    .lean()
+                    : [];
+                
+                // Fetch button subcategories (for red strip below)
+                const buttonSubcategories = buttonSubcategoryIds.length > 0
+                    ? await Subcategory.find({ 
+                        _id: { $in: buttonSubcategoryIds },
+                        isActive: true 
+                    })
+                    .populate('category', 'name _id')
+                    .sort({ name: 1 })
+                    .lean()
+                    : await Subcategory.find({ isActive: true })
+                    .populate('category', 'name _id')
+                    .sort({ name: 1 })
+                    .limit(20)
+                    .lean();
+                
+                data = { 
+                    gridSubcategories: gridSubcategories.slice(0, 6), // Ensure max 6
+                    buttonSubcategories 
+                };
                 break;
                 
             case 'bannerFullWidth':

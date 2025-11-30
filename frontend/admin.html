@@ -1211,43 +1211,17 @@
                                         </div>
                                     </div>
                                     <div class="col-md-12">
-                                        <label class="form-label">Product Sections</label>
-                                        <div class="form-text mb-2">Select which sections this product should appear in:</div>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <div class="form-check">
-                                                    <input class="form-check-input product-section-checkbox" type="checkbox" id="sectionTopSelling" value="Top Selling Product">
-                                                    <label class="form-check-label" for="sectionTopSelling">🏆 Top Selling Product</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input product-section-checkbox" type="checkbox" id="sectionLingerie" value="Lingerie Collection">
-                                                    <label class="form-check-label" for="sectionLingerie">👙 Lingerie Collection</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input product-section-checkbox" type="checkbox" id="sectionFeature" value="Product Feature Collection">
-                                                    <label class="form-check-label" for="sectionFeature">⭐ Product Feature Collection</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input product-section-checkbox" type="checkbox" id="sectionMegaSale" value="10.10 Mega Sale">
-                                                    <label class="form-check-label" for="sectionMegaSale">🎉 10.10 Mega Sale</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="form-check">
-                                                    <input class="form-check-input product-section-checkbox" type="checkbox" id="sectionNewArrivals" value="New Arrivals">
-                                                    <label class="form-check-label" for="sectionNewArrivals">🆕 New Arrivals</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input product-section-checkbox" type="checkbox" id="sectionBestSellers" value="Best Sellers">
-                                                    <label class="form-check-label" for="sectionBestSellers">⭐ Best Sellers</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input product-section-checkbox" type="checkbox" id="sectionOnSale" value="On Sale">
-                                                    <label class="form-check-label" for="sectionOnSale">💰 On Sale</label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="form-text mt-2">Products will appear in their selected sections on the main page.</div>
+                                        <label for="productSections" class="form-label">Product Sections</label>
+                                        <select class="form-select" id="productSections" name="productSections" multiple size="6">
+                                            <option value="New Arrivals">🆕 New Arrivals</option>
+                                            <option value="Top Selling Products">🏆 Top Selling Products</option>
+                                            <option value="Best Sellers">⭐ Best Sellers</option>
+                                            <option value="Lingerie Collection">👙 Lingerie Collection</option>
+                                            <option value="Product Feature Collection">⭐ Product Feature Collection</option>
+                                            <option value="On Sale">💰 On Sale</option>
+                                            <option value="10.10 Mega Sale">🎉 10.10 Mega Sale</option>
+                                        </select>
+                                        <div class="form-text mt-2">Hold Ctrl/Cmd to select multiple sections. Products will appear in selected sections on the main page (independent of category/department).</div>
                                     </div>
                                 </div>
                                 <div class="form-check">
@@ -1669,6 +1643,10 @@
                                     <option value="departmentGrid">Department Grid</option>
                                     <option value="productTabs">Product Tabs</option>
                                     <option value="productCarousel">Product Carousel</option>
+                                    <option value="newArrivals">New Arrivals</option>
+                                    <option value="topSelling">Top Selling Products</option>
+                                    <option value="featuredCollections">Featured Collections</option>
+                                    <option value="subcategoryGrid">Subcategory Grid</option>
                                     <option value="bannerFullWidth">Full-Width Banner</option>
                                     <option value="videoBanner">Video Banner</option>
                                     <option value="collectionLinks">Collection Links</option>

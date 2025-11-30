@@ -24,6 +24,10 @@ const HomepageSectionSchema = new mongoose.Schema({
             'departmentGrid',     // Department grid with images
             'productTabs',        // Tabbed product sections
             'productCarousel',    // Product carousel
+            'newArrivals',        // New Arrivals products section
+            'topSelling',         // Top Selling Products section
+            'featuredCollections', // Featured Collections (subcategories in circles)
+            'subcategoryGrid',    // Subcategory grid (6 big boxes with auto-sliding buttons)
             'bannerFullWidth',    // Full-width promotional banner
             'videoBanner',        // Video banner section
             'collectionLinks',    // Collection/category links

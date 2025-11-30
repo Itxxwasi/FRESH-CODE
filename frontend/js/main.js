@@ -73,12 +73,40 @@ const SECTION_RENDERERS = {
                 console.log('Page loaded, initializing...');
             }
             
+            // Wait for homepage-sections.js to load if needed
+            let loadSectionsPromise = Promise.resolve();
+            if (typeof window.loadAndRenderHomepageSections === 'function') {
+                console.log('loadAndRenderHomepageSections function found, calling it...');
+                loadSectionsPromise = window.loadAndRenderHomepageSections().catch(err => {
+                    console.error('Error loading homepage sections:', err);
+                    return Promise.resolve(); // Don't block other initialization
+                });
+            } else {
+                // Wait a bit for homepage-sections.js to load (if scripts are still loading)
+                console.warn('loadAndRenderHomepageSections not available yet, waiting...');
+                loadSectionsPromise = new Promise((resolve) => {
+                    let attempts = 0;
+                    const checkFunction = setInterval(() => {
+                        attempts++;
+                        if (typeof window.loadAndRenderHomepageSections === 'function') {
+                            clearInterval(checkFunction);
+                            console.log('loadAndRenderHomepageSections now available, loading sections...');
+                            window.loadAndRenderHomepageSections().then(resolve).catch(err => {
+                                console.error('Error loading homepage sections:', err);
+                                resolve(); // Don't block
+                            });
+                        } else if (attempts > 50) {
+                            // Give up after 5 seconds (50 * 100ms)
+                            clearInterval(checkFunction);
+                            console.error('loadAndRenderHomepageSections not available after waiting. Make sure homepage-sections.js is loaded before main.js.');
+                            resolve();
+                        }
+                    }, 100);
+                });
+            }
+            
             // Load critical content first (above fold) - don't wait for everything
-            const criticalLoad = Promise.allSettled([
-                typeof window.loadAndRenderHomepageSections === 'function' 
-                    ? window.loadAndRenderHomepageSections() 
-                    : (typeof loadAndRenderHomepageSections === 'function' ? loadAndRenderHomepageSections() : Promise.resolve())
-            ]);
+            const criticalLoad = Promise.allSettled([loadSectionsPromise]);
             
             // Load banners after sections (they need sections to position correctly)
             criticalLoad.then(() => {

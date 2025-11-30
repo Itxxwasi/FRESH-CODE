@@ -346,7 +346,7 @@
         </div>
 
         <!-- Old Sections (Fallback - shown immediately, hidden when new sections are loaded) -->
-        <div id="old-sections-fallback">
+        <div id="old-sections-fallback" style="display: none;">
         <!-- Hero Slider -->
         <section class="hero-carousel position-relative">
             <div class="hero-overlay"></div>
@@ -799,8 +799,8 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" defer></script>
     <script src="/js/logger.js" defer></script>
-    <script src="/js/main.js?v=6" defer></script>
-    <!-- version query to force latest homepage-sections.js to load -->
-    <script src="/js/homepage-sections.js?v=3" defer></script>
+    <!-- Load homepage-sections.js FIRST without defer to ensure it's available before main.js -->
+    <script src="/js/homepage-sections.js?v=5"></script>
+    <script src="/js/main.js?v=8" defer></script>
 </body>
 </html>

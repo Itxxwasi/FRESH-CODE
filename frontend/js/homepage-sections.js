@@ -26,18 +26,32 @@ async function cachedFetch(url, options = {}) {
     
     // If URL has cache-busting parameter (_t), skip cache
     if (url.includes('_t=')) {
+        console.log('Fetching (no cache):', url);
         const response = await fetch(url, options);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API Error (${response.status}):`, errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
         const data = await response.json();
+        console.log('API Response:', data);
         return data;
     }
     
     const cached = requestCache.get(cacheKey);
     
     if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+        console.log('Using cached data for:', url);
         return cached.data;
     }
     
+    console.log('Fetching:', url);
     const response = await fetch(url, options);
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API Error (${response.status}):`, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
     const data = await response.json();
     
     requestCache.set(cacheKey, {
@@ -57,6 +71,10 @@ const HOMEPAGE_SECTION_RENDERERS = {
     departmentGrid: renderDepartmentGrid,
     productTabs: renderProductTabs,
     productCarousel: renderProductCarousel,
+    newArrivals: renderNewArrivals,
+    topSelling: renderTopSelling,
+    featuredCollections: renderFeaturedCollections,
+    subcategoryGrid: renderSubcategoryGrid,
     bannerFullWidth: renderBannerFullWidth,
     videoBanner: renderVideoBanner,
     collectionLinks: renderCollectionLinks,
@@ -66,12 +84,27 @@ const HOMEPAGE_SECTION_RENDERERS = {
     customHTML: renderCustomHTML
 };
 
+// Export renderers immediately so they're available
+if (typeof window !== 'undefined') {
+    window.HOMEPAGE_SECTION_RENDERERS = HOMEPAGE_SECTION_RENDERERS;
+    console.log('HOMEPAGE_SECTION_RENDERERS exported to window');
+}
+
 // Load and render homepage sections
 async function loadAndRenderHomepageSections() {
     const startTime = performance.now();
+    console.log('loadAndRenderHomepageSections function called');
+    
+    // Export to window immediately when function is called (backup)
+    if (typeof window !== 'undefined' && !window.loadAndRenderHomepageSections) {
+        window.loadAndRenderHomepageSections = loadAndRenderHomepageSections;
+        console.log('loadAndRenderHomepageSections exported to window (backup)');
+    }
     try {
         if (typeof window.Logger !== 'undefined') {
             window.Logger.info('Loading homepage sections...');
+        } else {
+            console.log('Loading homepage sections...');
         }
         
         // Fetch homepage sections.
@@ -80,12 +113,22 @@ async function loadAndRenderHomepageSections() {
         let sections;
         try {
             const url = `/api/homepage-sections/public?_t=${Date.now()}`;
+            console.log('Fetching sections from:', url);
             sections = await cachedFetch(url);
+            console.log('Sections received:', sections);
             if (!Array.isArray(sections)) {
+                console.error('Invalid sections response format:', sections);
                 throw new Error('Invalid sections response format');
             }
         } catch (error) {
             const errorMsg = `Failed to load homepage sections: ${error.message}`;
+            console.error(errorMsg, error);
+            // Hide fallback even on error to prevent showing hardcoded content
+            const oldSectionsFallback = document.getElementById('old-sections-fallback');
+            if (oldSectionsFallback) {
+                oldSectionsFallback.style.display = 'none';
+                console.log('Hidden old-sections-fallback due to error');
+            }
             if (typeof window.Logger !== 'undefined') {
                 window.Logger.error(errorMsg, error, {});
             } else {
@@ -99,6 +142,12 @@ async function loadAndRenderHomepageSections() {
                 window.Logger.warn(msg);
             } else {
                 console.warn(msg);
+            }
+            // Hide fallback even when no sections found to prevent showing hardcoded content
+            const oldSectionsFallback = document.getElementById('old-sections-fallback');
+            if (oldSectionsFallback) {
+                oldSectionsFallback.style.display = 'none';
+                console.log('Hidden old-sections-fallback - no sections found');
             }
             // Show user-friendly message
             const mainContainer = document.querySelector('main');
@@ -137,10 +186,12 @@ async function loadAndRenderHomepageSections() {
             console.error('Main container not found');
             return;
         }
+        console.log('Main container found');
         
         // Use existing container or create it
         let homepageSectionsContainer = document.getElementById('homepage-sections-container');
         if (!homepageSectionsContainer) {
+            console.log('Creating homepage-sections-container');
             homepageSectionsContainer = document.createElement('div');
             homepageSectionsContainer.id = 'homepage-sections-container';
             homepageSectionsContainer.className = 'homepage-sections-container';
@@ -151,15 +202,19 @@ async function loadAndRenderHomepageSections() {
             } else {
                 mainContainer.appendChild(homepageSectionsContainer);
             }
+        } else {
+            console.log('homepage-sections-container already exists');
         }
         
         // Clear container before rendering new sections
         homepageSectionsContainer.innerHTML = '';
+        console.log('Container cleared, ready to render sections');
         
-        // Hide old sections fallback if we have new sections
+        // Hide old sections fallback if we have new sections (or always hide it to prevent showing hardcoded content)
         const oldSectionsFallback = document.getElementById('old-sections-fallback');
-        if (oldSectionsFallback && sections.length > 0) {
+        if (oldSectionsFallback) {
             oldSectionsFallback.style.display = 'none';
+            console.log('Hidden old-sections-fallback to prevent showing hardcoded content');
         }
         
         // Render sections in their exact order to maintain proper sequence
@@ -318,70 +373,59 @@ async function renderSection(section, index, allSections, container) {
     }
     
     const renderer = HOMEPAGE_SECTION_RENDERERS[section.type];
-    if (renderer) {
-        try {
-            const sectionStartTime = performance.now();
-            const sectionElement = await renderer(section, index);
-            const sectionDuration = performance.now() - sectionStartTime;
-            
-            if (sectionElement) {
-                // Create wrapper element if needed
-                if (typeof sectionElement === 'string') {
-                    const wrapper = document.createElement('div');
-                    wrapper.innerHTML = sectionElement;
-                    const firstChild = wrapper.firstElementChild;
-                    if (firstChild) {
-                        container.appendChild(firstChild);
-                    }
-                } else if (sectionElement instanceof Node) {
-                    container.appendChild(sectionElement);
-                }
-                
-                if (typeof window.Logger !== 'undefined') {
-                    window.Logger.debug(`Section render time: ${sectionDuration.toFixed(2)}ms`, {
-                        sectionName: section.name,
-                        duration: sectionDuration
-                    });
-                }
-                return { rendered: true };
-            }
-            return { rendered: false, reason: 'No element returned' };
-        } catch (error) {
-            const errorMsg = `Error rendering section ${section.name} (${section.type})`;
-            if (typeof window.Logger !== 'undefined') {
-                window.Logger.error(errorMsg, error, {
-                    sectionName: section.name,
-                    sectionType: section.type,
-                    sectionId: section._id
-                });
-            } else {
-                console.error(errorMsg, error);
-                console.error('Section data:', section);
-            }
-            // Show error in UI for debugging
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'alert alert-danger m-3';
-            errorDiv.innerHTML = `<strong>Error rendering section:</strong> ${section.name} (${section.type})<br><small>${error.message || error.toString()}</small>`;
-            container.appendChild(errorDiv);
-        }
-    } else {
-        const warnMsg = `No renderer found for section type: ${section.type}`;
-        if (typeof window.Logger !== 'undefined') {
-            window.Logger.warn(warnMsg, {
-                sectionName: section.name,
-                sectionType: section.type
-            });
-        } else {
-            console.warn(warnMsg, { section });
-        }
-        // Show warning in UI
-        const warnDiv = document.createElement('div');
-        warnDiv.className = 'alert alert-warning m-3';
-        warnDiv.innerHTML = `<strong>No renderer:</strong> ${section.name} (${section.type})`;
-        container.appendChild(warnDiv);
+    if (!renderer) {
+        console.error(`No renderer found for section type: "${section.type}" (section name: "${section.name}")`);
+        console.error('Available renderers:', Object.keys(HOMEPAGE_SECTION_RENDERERS));
+        return { rendered: false, reason: `No renderer for type: ${section.type}` };
     }
     
-    return { skip: false };
+    try {
+        const sectionStartTime = performance.now();
+        console.log(`Calling renderer for section "${section.name}" (type: ${section.type})`);
+        const sectionElement = await renderer(section, index);
+        const sectionDuration = performance.now() - sectionStartTime;
+        
+        if (sectionElement) {
+            // Create wrapper element if needed
+            if (typeof sectionElement === 'string') {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = sectionElement;
+                const firstChild = wrapper.firstElementChild;
+                if (firstChild) {
+                    container.appendChild(firstChild);
+                }
+            } else if (sectionElement instanceof Node) {
+                container.appendChild(sectionElement);
+            }
+            
+            if (typeof window.Logger !== 'undefined') {
+                window.Logger.debug(`Section render time: ${sectionDuration.toFixed(2)}ms`, {
+                    sectionName: section.name,
+                    duration: sectionDuration
+                });
+            }
+            return { rendered: true };
+        }
+        return { rendered: false, reason: 'No element returned' };
+    } catch (error) {
+        const errorMsg = `Error rendering section ${section.name} (${section.type})`;
+        if (typeof window.Logger !== 'undefined') {
+            window.Logger.error(errorMsg, error, {
+                sectionName: section.name,
+                sectionType: section.type,
+                sectionId: section._id
+            });
+        } else {
+            console.error(errorMsg, error);
+            console.error('Section data:', section);
+        }
+        // Show error in UI for debugging
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger m-3';
+        errorDiv.innerHTML = `<strong>Error rendering section:</strong> ${section.name} (${section.type})<br><small>${error.message || error.toString()}</small>`;
+        container.appendChild(errorDiv);
+        return { rendered: false, reason: error.message || error.toString() };
+    }
 }
 
 // Render Hero Slider
@@ -1269,6 +1313,452 @@ async function renderProductCarousel(section, index) {
     }
 }
 
+// Render New Arrivals Section with Category Tabs
+async function renderNewArrivals(section, index) {
+    try {
+        // Fetch all new arrival products FIRST (use public route)
+        let url = '/api/homepage-sections/' + section._id + '/data/public';
+        let data;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                if (response.status === 403) {
+                    console.warn('New Arrivals section is not published or active');
+                } else {
+                    console.error(`HTTP error! status: ${response.status}`);
+                }
+                return null;
+            }
+            data = await response.json();
+        } catch (error) {
+            console.error('Error fetching new arrivals:', error);
+            return null;
+        }
+        
+        const allProducts = Array.isArray(data.products) ? data.products : [];
+        console.log(`New Arrivals: Received ${allProducts.length} products from API`);
+        
+        if (allProducts.length === 0) {
+            console.warn('New Arrivals: No products found');
+            return null;
+        }
+        
+        // Group products by category
+        const productsByCategory = {};
+        allProducts.forEach(product => {
+            const catId = product.category?._id || product.category;
+            if (catId) {
+                const catIdStr = catId.toString();
+                if (!productsByCategory[catIdStr]) {
+                    productsByCategory[catIdStr] = [];
+                }
+                productsByCategory[catIdStr].push(product);
+            }
+        });
+        
+        console.log(`New Arrivals: Products grouped into ${Object.keys(productsByCategory).length} categories`);
+        
+        // Fetch categories for tabs - get ALL active categories that have products
+        const categoriesResponse = await fetch('/api/categories');
+        const allCategories = await categoriesResponse.json();
+        
+        // Get all categories that have new arrival products (not limited to 9)
+        const categoriesWithProducts = new Set(Object.keys(productsByCategory));
+        
+        // Filter to only show categories that have products, and are active
+        const activeCategories = allCategories.filter(cat => 
+            cat.isActive && categoriesWithProducts.has(cat._id.toString())
+        );
+        
+        console.log(`New Arrivals: Found ${allProducts.length} products across ${activeCategories.length} categories`);
+        console.log(`New Arrivals: Categories with products:`, activeCategories.map(c => c.name));
+        
+        // Add "All" category with all products
+        const allCategoryProducts = allProducts;
+        
+        const sectionHtml = `
+            <section class="new-arrivals homepage-section" 
+                     data-section-type="newArrivals" 
+                     data-section-id="${section._id}">
+                <div class="container py-8">
+                    ${section.title ? `
+                        <div class="section-header mb-4 text-center">
+                            <h2 class="section-title" style="font-size: 28px; font-weight: 600; margin-bottom: 20px;">${htmlEscape(section.title)}</h2>
+                            ${section.subtitle ? `<p class="text-muted">${htmlEscape(section.subtitle)}</p>` : ''}
+                        </div>
+                    ` : ''}
+                    ${activeCategories.length > 0 ? `
+                        <div class="category-tabs-nav mb-4">
+                            <ul class="nav nav-pills justify-content-center" role="tablist" id="newArrivalsTabs_${index}">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" 
+                                            data-bs-toggle="pill" 
+                                            data-bs-target="#newArrivalsAll_${index}" 
+                                            type="button"
+                                            data-category-id="all">
+                                        All
+                                    </button>
+                                </li>
+                                ${activeCategories.map(cat => `
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" 
+                                                data-bs-toggle="pill" 
+                                                data-bs-target="#newArrivalsCat_${index}_${cat._id}" 
+                                                type="button"
+                                                data-category-id="${cat._id}">
+                                            ${htmlEscape(cat.name)}
+                                        </button>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="newArrivalsAll_${index}" role="tabpanel">
+                            <div class="product-carousel__wrapper">
+                                <div class="product-carousel__track" id="newArrivalsCarousel_${index}_all" data-autoplay="true" data-autoplay-speed="3000">
+                                    ${allCategoryProducts.length > 0 ? allCategoryProducts.map(product => {
+                                        window.currentRenderContext = 'carousel';
+                                        const card = renderProductCard(product);
+                                        window.currentRenderContext = null;
+                                        return `<div class="product-carousel__slide">${card}</div>`;
+                                    }).join('') : '<p class="text-center text-muted">No products found</p>'}
+                                </div>
+                                <button class="product-carousel__nav product-carousel__nav--prev" aria-label="Previous">
+                                    <span>&lsaquo;</span>
+                                </button>
+                                <button class="product-carousel__nav product-carousel__nav--next" aria-label="Next">
+                                    <span>&rsaquo;</span>
+                                </button>
+                            </div>
+                        </div>
+                        ${activeCategories.map(cat => {
+                            const catIdStr = cat._id.toString();
+                            const catProducts = productsByCategory[catIdStr] || [];
+                            console.log(`New Arrivals: Category "${cat.name}" has ${catProducts.length} products`);
+                            return `
+                                <div class="tab-pane fade" id="newArrivalsCat_${index}_${cat._id}" role="tabpanel">
+                                    <div class="product-carousel__wrapper">
+                                        <div class="product-carousel__track" id="newArrivalsCarousel_${index}_${cat._id}" data-autoplay="true" data-autoplay-speed="3000">
+                                            ${catProducts.length > 0 ? catProducts.map(product => {
+                                                window.currentRenderContext = 'carousel';
+                                                const card = renderProductCard(product);
+                                                window.currentRenderContext = null;
+                                                return `<div class="product-carousel__slide">${card}</div>`;
+                                            }).join('') : '<p class="text-center text-muted">No products in this category</p>'}
+                                        </div>
+                                        <button class="product-carousel__nav product-carousel__nav--prev" aria-label="Previous">
+                                            <span>&lsaquo;</span>
+                                        </button>
+                                        <button class="product-carousel__nav product-carousel__nav--next" aria-label="Next">
+                                            <span>&rsaquo;</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </section>
+        `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sectionHtml;
+        const sectionElement = tempDiv.firstElementChild;
+        
+        // Initialize carousels after DOM insertion
+        if (sectionElement) {
+            setTimeout(() => {
+                // Initialize "All" carousel
+                const allTabPane = sectionElement.querySelector(`#newArrivalsAll_${index}`);
+                if (allTabPane) {
+                    initProductCarousel(allTabPane, { autoplay: true, autoplaySpeed: 3000 });
+                }
+                // Initialize category carousels
+                activeCategories.forEach(cat => {
+                    const catTabPane = sectionElement.querySelector(`#newArrivalsCat_${index}_${cat._id}`);
+                    if (catTabPane) {
+                        initProductCarousel(catTabPane, { autoplay: true, autoplaySpeed: 3000 });
+                    }
+                });
+                
+                // Re-initialize carousel when tab is switched
+                const tabButtons = sectionElement.querySelectorAll(`#newArrivalsTabs_${index} .nav-link`);
+                tabButtons.forEach(button => {
+                    button.addEventListener('shown.bs.tab', (e) => {
+                        const targetId = e.target.getAttribute('data-bs-target');
+                        const targetPane = sectionElement.querySelector(targetId);
+                        if (targetPane) {
+                            // Small delay to ensure tab is visible
+                            setTimeout(() => {
+                                initProductCarousel(targetPane, { autoplay: true, autoplaySpeed: 3000 });
+                            }, 50);
+                        }
+                    });
+                });
+            }, 100);
+        }
+        
+        return sectionElement;
+    } catch (error) {
+        console.error('Error rendering new arrivals:', error);
+        return null;
+    }
+}
+
+// Render Top Selling Products Section
+async function renderTopSelling(section, index) {
+    try {
+        let url = '/api/homepage-sections/' + section._id + '/data/public';
+        
+        // Fetch products for top selling
+        let data;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                if (response.status === 403) {
+                    console.warn('Top Selling section is not published or active');
+                } else {
+                    console.error(`HTTP error! status: ${response.status}`);
+                }
+                return null;
+            }
+            data = await response.json();
+        } catch (error) {
+            console.error('Error fetching top selling products:', error);
+            return null;
+        }
+        
+        const products = Array.isArray(data.products) ? data.products : [];
+        
+        if (products.length === 0) {
+            return null;
+        }
+        
+        const sectionHtml = `
+            <section class="top-selling homepage-section" 
+                     data-section-type="topSelling" 
+                     data-section-id="${section._id}">
+                <div class="container py-5">
+                    ${section.title ? `
+                        <div class="section-header mb-4">
+                            <h2 class="section-title" style="font-size: 28px; font-weight: 600; margin-bottom: 20px;">${htmlEscape(section.title)}</h2>
+                            ${section.subtitle ? `<p class="text-muted">${htmlEscape(section.subtitle)}</p>` : ''}
+                        </div>
+                    ` : ''}
+                    <div class="product-carousel__wrapper">
+                        <div class="product-carousel__track" id="topSelling_${index}" data-autoplay="true" data-autoplay-speed="3000">
+                            ${products.map(product => {
+                                window.currentRenderContext = 'carousel';
+                                const card = renderProductCard(product);
+                                window.currentRenderContext = null;
+                                return `<div class="product-carousel__slide">${card}</div>`;
+                            }).join('')}
+                        </div>
+                        <button class="product-carousel__nav product-carousel__nav--prev" aria-label="Previous">
+                            <span>&lsaquo;</span>
+                        </button>
+                        <button class="product-carousel__nav product-carousel__nav--next" aria-label="Next">
+                            <span>&rsaquo;</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sectionHtml;
+        const sectionElement = tempDiv.firstElementChild;
+        
+        // Initialize carousel after DOM insertion
+        if (sectionElement) {
+            setTimeout(() => {
+                initProductCarousel(sectionElement, { autoplay: true, autoplaySpeed: 3000 });
+            }, 100);
+        }
+        
+        return sectionElement;
+    } catch (error) {
+        console.error('Error rendering top selling products:', error);
+        return null;
+    }
+}
+
+// Render Featured Collections (Subcategories in Circles with Auto-Sliding Rows)
+async function renderFeaturedCollections(section, index) {
+    try {
+        let url = '/api/homepage-sections/' + section._id + '/data/public';
+        
+        // Fetch subcategories
+        let data;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                if (response.status === 403) {
+                    console.warn('Featured Collections section is not published or active');
+                } else {
+                    console.error(`HTTP error! status: ${response.status}`);
+                }
+                return null;
+            }
+            data = await response.json();
+        } catch (error) {
+            console.error('Error fetching featured collections:', error);
+            return null;
+        }
+        
+        const subcategories = Array.isArray(data.subcategories) ? data.subcategories : [];
+        
+        if (subcategories.length === 0) {
+            console.warn('Featured Collections: No subcategories found');
+            return null;
+        }
+        
+        console.log(`Featured Collections: Found ${subcategories.length} subcategories to display:`, subcategories.map(s => s.name));
+        
+        // Show 8 subcategories per slide in a single row with horizontal auto-sliding
+        const subcategoriesPerSlide = 8;
+        
+        // IMPORTANT: Use ALL subcategories, not just a subset
+        // Duplicate all subcategories for seamless infinite loop (so auto-slide can cycle through all items)
+        const duplicatedSubcategories = [...subcategories, ...subcategories, ...subcategories];
+        
+        console.log(`Featured Collections: Total items in carousel: ${duplicatedSubcategories.length} (${subcategories.length} unique subcategories × 3 for infinite loop)`);
+        console.log(`Featured Collections: Will show ${Math.ceil(subcategories.length / subcategoriesPerSlide)} slides with ${subcategoriesPerSlide} items per slide`);
+        
+        const sectionHtml = `
+            <section class="featured-collections homepage-section" 
+                     data-section-type="featuredCollections" 
+                     data-section-id="${section._id}">
+                <div class="container-fluid py-5 px-4">
+                    ${section.title ? `
+                        <div class="section-header text-center mb-4">
+                            <h2>${htmlEscape(section.title)}</h2>
+                            ${section.subtitle ? `<p class="text-muted">${htmlEscape(section.subtitle)}</p>` : ''}
+                        </div>
+                    ` : ''}
+                    <div class="featured-collections__wrapper">
+                        <div class="featured-collections__container" id="featuredCollections_${index}">
+                            <div class="featured-collections__track">
+                                ${duplicatedSubcategories.map(subcat => {
+                                    const imageUrl = subcat.imageUpload?.url || subcat.image || getGlobalFallbackImage();
+                                    const subcatId = subcat._id || subcat.id;
+                                    return `
+                                        <a href="/subcategory/${subcatId}" class="featured-collection-item">
+                                            <div class="featured-collection__image">
+                                                <img src="${htmlEscape(imageUrl)}" 
+                                                     alt="${htmlEscape(subcat.name)}" 
+                                                     loading="lazy">
+                                            </div>
+                                            <span class="featured-collection__name">${htmlEscape(subcat.name)}</span>
+                                        </a>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sectionHtml;
+        const sectionElement = tempDiv.firstElementChild;
+        
+        // Initialize auto-sliding after DOM insertion
+        if (sectionElement) {
+            setTimeout(() => {
+                // Pass total subcategories count, not just visible ones, so auto-slide works with all items
+                initFeaturedCollectionsCarousel(`#featuredCollections_${index}`, subcategories.length);
+            }, 100);
+        }
+        
+        return sectionElement;
+    } catch (error) {
+        console.error('Error rendering featured collections:', error);
+        return null;
+    }
+}
+
+// Initialize Featured Collections Carousel (horizontal sliding)
+function initFeaturedCollectionsCarousel(containerSelector, totalItems) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+    
+    const track = container.querySelector('.featured-collections__track');
+    const items = container.querySelectorAll('.featured-collection-item');
+    
+    if (!track || items.length === 0) return;
+    
+    // Wait for layout to calculate item width
+    setTimeout(() => {
+        let currentIndex = 0;
+        const visibleItems = 8; // Show 8 items at a time
+        const firstItem = items[0];
+        const itemWidth = firstItem ? (firstItem.offsetWidth + 15) : 150; // Include gap (15px gap between items)
+        
+        // Calculate total slides based on unique subcategories (not duplicated ones)
+        const totalSlides = Math.ceil(totalItems / visibleItems);
+        console.log(`Featured Collections Carousel: ${totalItems} total subcategories, ${visibleItems} per slide, ${totalSlides} total slides`);
+        
+        function updateCarousel() {
+            const translateX = -currentIndex * (itemWidth * visibleItems);
+            track.style.transition = 'transform 0.8s ease-in-out';
+            track.style.transform = `translateX(${translateX}px)`;
+            console.log(`Featured Collections: Sliding to slide ${currentIndex + 1} of ${totalSlides} (showing items ${currentIndex * visibleItems} to ${(currentIndex * visibleItems) + visibleItems - 1})`);
+        }
+        
+        // Auto-slide every 3 seconds - slide by 8 items at a time
+        let autoplayInterval = setInterval(() => {
+            currentIndex++;
+            // If we've shown all slides, loop back to start seamlessly
+            if (currentIndex >= totalSlides) {
+                console.log(`Featured Collections: Reached end, looping back to start`);
+                currentIndex = 0;
+                // Reset without transition for seamless loop
+                track.style.transition = 'none';
+                track.style.transform = 'translateX(0px)';
+                setTimeout(() => {
+                    track.style.transition = 'transform 0.8s ease-in-out';
+                }, 50);
+            } else {
+                updateCarousel();
+            }
+        }, 3000);
+        
+        // Pause on hover
+        container.addEventListener('mouseenter', () => {
+            clearInterval(autoplayInterval);
+        });
+        
+        // Resume on mouse leave
+        let resumeTimeout;
+        container.addEventListener('mouseleave', () => {
+            clearTimeout(resumeTimeout);
+            resumeTimeout = setTimeout(() => {
+                autoplayInterval = setInterval(() => {
+                    currentIndex++;
+                    if (currentIndex >= totalSlides) {
+                        console.log(`Featured Collections: Reached end, looping back to start`);
+                        currentIndex = 0;
+                        track.style.transition = 'none';
+                        track.style.transform = 'translateX(0px)';
+                        setTimeout(() => {
+                            track.style.transition = 'transform 0.8s ease-in-out';
+                        }, 50);
+                    } else {
+                        updateCarousel();
+                    }
+                }, 3000);
+            }, 500);
+        });
+        
+        // Initial position - start at slide 0
+        updateCarousel();
+        console.log(`Featured Collections: Carousel initialized, starting at slide 1 of ${totalSlides}`);
+    }, 200);
+}
+
 // Render Banner Full Width
 async function renderBannerFullWidth(section, index) {
     const bannerId = section.config?.bannerId;
@@ -1667,35 +2157,46 @@ async function renderCollectionLinks(section, index) {
 
 // Render Newsletter & Social
 function renderNewsletterSocial(section, index) {
-    const newsletterTitle = section.config?.newsletterTitle || section.title || 'Subscribe to our newsletter';
-    const newsletterDesc = section.config?.newsletterDesc || section.description || 'Get updates on new products and special offers';
+    const socialTitle = section.config?.socialTitle || 'LET\'S CONNECT ON SOCIAL MEDIA';
+    const socialDesc = section.config?.socialDesc || 'Follow us to stay updated on latest looks.';
+    const newsletterTitle = section.config?.newsletterTitle || 'SIGN UP FOR EXCLUSIVE OFFERS & DISCOUNTS';
+    const newsletterDesc = section.config?.newsletterDesc || 'Stay updated on new deals and news.';
     const socialLinks = section.config?.socialLinks || {};
+    
+    // Get Facebook and Instagram URLs
+    const facebookUrl = socialLinks.facebook || socialLinks.Facebook || '#';
+    const instagramUrl = socialLinks.instagram || socialLinks.Instagram || '#';
     
     const sectionHtml = `
         <section class="newsletter-social homepage-section" data-section-type="newsletterSocial" data-section-id="${section._id}">
-            <div class="container py-5">
-                <div class="row align-items-center">
-                    <div class="col-lg-6">
-                        <h3>${htmlEscape(newsletterTitle)}</h3>
-                        <p>${htmlEscape(newsletterDesc)}</p>
-                        <form class="newsletter-form" id="newsletterForm_${index}">
-                            <div class="input-group">
-                                <input type="email" class="form-control" placeholder="Enter your email" required>
-                                <button class="btn btn-primary" type="submit">Subscribe</button>
+            <div class="newsletter-social__container">
+                <div class="newsletter-social__wrapper">
+                    <div class="newsletter-social__left">
+                        <h3 class="newsletter-social__heading">${htmlEscape(socialTitle)}</h3>
+                        <div class="newsletter-social__icons">
+                            ${facebookUrl !== '#' ? `
+                                <a href="${htmlEscape(facebookUrl)}" target="_blank" rel="noopener" class="newsletter-social__icon">
+                                    <i class="fab fa-facebook-f"></i>
+                                </a>
+                            ` : ''}
+                            ${instagramUrl !== '#' ? `
+                                <a href="${htmlEscape(instagramUrl)}" target="_blank" rel="noopener" class="newsletter-social__icon">
+                                    <i class="fab fa-instagram"></i>
+                                </a>
+                            ` : ''}
+                        </div>
+                        <p class="newsletter-social__text">${htmlEscape(socialDesc)}</p>
+                    </div>
+                    <div class="newsletter-social__right">
+                        <h3 class="newsletter-social__heading">${htmlEscape(newsletterTitle)}</h3>
+                        <form class="newsletter-social__form" id="newsletterForm_${index}">
+                            <div class="newsletter-social__input-group">
+                                <input type="email" class="newsletter-social__input" placeholder="Enter your email address" required>
+                                <button class="newsletter-social__submit" type="submit">Submit</button>
                             </div>
                         </form>
+                        <p class="newsletter-social__text">${htmlEscape(newsletterDesc)}</p>
                     </div>
-                    ${Object.keys(socialLinks).length > 0 ? `
-                        <div class="col-lg-6 text-end">
-                            <div class="social-links">
-                                ${Object.entries(socialLinks).map(([platform, url]) => `
-                                    <a href="${htmlEscape(url)}" target="_blank" rel="noopener" class="social-link">
-                                        <i class="fab fa-${platform}"></i>
-                                    </a>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
                 </div>
             </div>
         </section>
@@ -2218,6 +2719,7 @@ function initProductCarousel(container, options) {
     if (nextBtn) nextBtn.addEventListener('click', nextSlide);
     
     if (options.autoplay && !isMobile) {
+        const autoplaySpeed = options.autoplaySpeed || 3000;
         setInterval(() => {
             if (currentIndex >= slides.length - visibleSlides) {
                 currentIndex = 0;
@@ -2225,7 +2727,7 @@ function initProductCarousel(container, options) {
                 currentIndex++;
             }
             updateCarousel();
-        }, 4000);
+        }, autoplaySpeed);
     }
     
     updateCarousel();
@@ -2771,11 +3273,185 @@ function renderBannerByPosition(banner, position) {
     }
 }
 
-// Export for use in main.js
-if (typeof window !== 'undefined') {
-    window.loadAndRenderHomepageSections = loadAndRenderHomepageSections;
-    window.loadAndRenderBanners = loadAndRenderBanners;
-    window.HOMEPAGE_SECTION_RENDERERS = HOMEPAGE_SECTION_RENDERERS;
+// Render Subcategory Grid Section (6 big boxes with auto-sliding buttons)
+async function renderSubcategoryGrid(section, index) {
+    try {
+        // Fetch subcategory data (use public route)
+        let url = '/api/homepage-sections/' + section._id + '/data/public';
+        let data;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                if (response.status === 403) {
+                    console.warn('Subcategory Grid section is not published or active');
+                } else {
+                    console.error(`HTTP error! status: ${response.status}`);
+                }
+                return null;
+            }
+            data = await response.json();
+        } catch (error) {
+            console.error('Error fetching subcategory grid data:', error);
+            return null;
+        }
+        
+        const gridSubcategories = Array.isArray(data.gridSubcategories) ? data.gridSubcategories : [];
+        const buttonSubcategories = Array.isArray(data.buttonSubcategories) ? data.buttonSubcategories : [];
+        
+        if (gridSubcategories.length === 0) {
+            console.warn('Subcategory Grid: No subcategories found');
+            return null;
+        }
+        
+        // Limit to 6 boxes
+        const displaySubcategories = gridSubcategories.slice(0, 6);
+        
+        // Gradient colors for each box (matching reference image)
+        const gradients = [
+            'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', // Pink
+            'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)', // Purple
+            'linear-gradient(135deg, #fd79a8 0%, #e84393 100%)', // Orange-brown
+            'linear-gradient(135deg, #fdcb6e 0%, #e17055 100%)', // Beige
+            'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)', // Gold
+            'linear-gradient(135deg, #d63031 0%, #b71c1c 100%)'  // Maroon-pink
+        ];
+        
+        const sectionHtml = `
+            <section class="subcategory-grid-section homepage-section" 
+                     data-section-type="subcategoryGrid" 
+                     data-section-id="${section._id}">
+                <div class="container py-5">
+                    ${section.title ? `
+                        <div class="section-header text-center mb-4">
+                            <h2 class="section-title">${htmlEscape(section.title)}</h2>
+                            ${section.subtitle ? `<p class="text-muted">${htmlEscape(section.subtitle)}</p>` : ''}
+                        </div>
+                    ` : ''}
+                    <div class="subcategory-grid-container">
+                        <div class="subcategory-grid">
+                            ${displaySubcategories.map((subcat, idx) => {
+                                const imageUrl = subcat.imageUpload?.url || subcat.image || getGlobalFallbackImage();
+                                const subcatId = subcat._id || subcat.id;
+                                
+                                return `
+                                    <a href="/subcategory/${subcatId}" class="subcategory-grid-item">
+                                        <div class="subcategory-grid-item__image">
+                                            <img src="${htmlEscape(imageUrl)}" 
+                                                 alt="${htmlEscape(subcat.name)}" 
+                                                 loading="lazy">
+                                        </div>
+                                        <div class="subcategory-grid-item__name">
+                                            ${htmlEscape(subcat.name)}
+                                        </div>
+                                    </a>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    ${buttonSubcategories.length > 0 ? `
+                        <div class="subcategory-buttons-wrapper">
+                            <div class="subcategory-buttons-container" id="subcategoryButtons_${index}">
+                                <div class="subcategory-buttons-track">
+                                    ${buttonSubcategories.map(subcat => {
+                                        const subcatId = subcat._id || subcat.id;
+                                        return `
+                                            <a href="/subcategory/${subcatId}" class="subcategory-button">
+                                                <span>${htmlEscape(subcat.name)}</span>
+                                                <span class="subcategory-button__arrow">→</span>
+                                            </a>
+                                        `;
+                                    }).join('')}
+                                    ${buttonSubcategories.map(subcat => {
+                                        const subcatId = subcat._id || subcat.id;
+                                        return `
+                                            <a href="/subcategory/${subcatId}" class="subcategory-button">
+                                                <span>${htmlEscape(subcat.name)}</span>
+                                                <span class="subcategory-button__arrow">→</span>
+                                            </a>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </section>
+        `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sectionHtml;
+        const sectionElement = tempDiv.firstElementChild;
+        
+        // Initialize auto-sliding buttons after DOM insertion
+        if (sectionElement && buttonSubcategories.length > 0) {
+            setTimeout(() => {
+                initSubcategoryButtonsCarousel(`#subcategoryButtons_${index}`, buttonSubcategories.length);
+            }, 100);
+        }
+        
+        return sectionElement;
+    } catch (error) {
+        console.error('Error rendering subcategory grid:', error);
+        return null;
+    }
 }
+
+// Initialize Subcategory Buttons Auto-Slide Carousel
+function initSubcategoryButtonsCarousel(containerSelector, totalItems) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+    
+    const track = container.querySelector('.subcategory-buttons-track');
+    if (!track) return;
+    
+    let currentPosition = 0;
+    const buttonWidth = 180; // Approximate button width with padding
+    const visibleButtons = Math.floor(container.offsetWidth / buttonWidth);
+    
+    function updateCarousel() {
+        track.style.transition = 'transform 0.6s ease-in-out';
+        track.style.transform = `translateX(-${currentPosition}px)`;
+    }
+    
+    // Auto-slide every 3 seconds
+    let autoplayInterval = setInterval(() => {
+        currentPosition += buttonWidth;
+        
+        // Reset to start when we've scrolled through all items
+        const maxScroll = totalItems * buttonWidth;
+        if (currentPosition >= maxScroll) {
+            currentPosition = 0;
+            track.style.transition = 'none';
+            track.style.transform = 'translateX(0px)';
+            setTimeout(() => {
+                track.style.transition = 'transform 0.6s ease-in-out';
+            }, 50);
+        } else {
+            updateCarousel();
+        }
+    }, 3000);
+    
+    // Store interval for cleanup
+    container.dataset.autoplayInterval = autoplayInterval;
+}
+
+// Export for use in main.js - Export immediately when script loads
+// This runs when the script is parsed, ensuring functions are available
+(function() {
+    if (typeof window !== 'undefined') {
+        // Export functions immediately so they're available when main.js loads
+        window.loadAndRenderHomepageSections = loadAndRenderHomepageSections;
+        window.loadAndRenderBanners = loadAndRenderBanners;
+        window.HOMEPAGE_SECTION_RENDERERS = HOMEPAGE_SECTION_RENDERERS;
+        console.log('homepage-sections.js loaded - functions exported to window');
+        console.log('Available functions:', {
+            loadAndRenderHomepageSections: typeof window.loadAndRenderHomepageSections,
+            loadAndRenderBanners: typeof window.loadAndRenderBanners,
+            HOMEPAGE_SECTION_RENDERERS: typeof window.HOMEPAGE_SECTION_RENDERERS
+        });
+    } else {
+        console.error('window object not available - cannot export functions');
+    }
+})();
 
 

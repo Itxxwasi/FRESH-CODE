@@ -2208,7 +2208,7 @@ function resetProductForm() {
     $('#productImageFile').val('');
     $('#productImageFileId').val('');
     // Clear section checkboxes
-    $('.product-section-checkbox').prop('checked', false);
+    $('#productSections').val([]);
     setImagePreview('#productImagePreview', null);
     $('#productDepartment').html('<option value="">Select Department</option>');
     $('#productCategory').html('<option value="">Select Department First</option>');
@@ -2596,9 +2596,9 @@ async function saveProduct() {
         const imageUrl = ($('#productImage').val() || '').trim();
         const existingFileId = normaliseFileId($('#productImageFileId').val());
 
-        // Collect selected sections
+        // Collect selected sections from dropdown
         const selectedSections = [];
-        $('.product-section-checkbox:checked').each(function() {
+        $('#productSections option:selected').each(function() {
             selectedSections.push($(this).val());
         });
 
@@ -3204,12 +3204,10 @@ async function editProduct(id) {
         $('#productNewArrival').prop('checked', product.isNewArrival);
         $('#productBestSelling').prop('checked', product.isBestSelling || false);
         $('#productTopSelling').prop('checked', product.isTopSelling || false);
-        // Populate sections checkboxes
-        $('.product-section-checkbox').prop('checked', false);
+        // Populate sections dropdown
+        $('#productSections').val([]);
         if (product.sections && Array.isArray(product.sections)) {
-            product.sections.forEach(function(section) {
-                $(`.product-section-checkbox[value="${section}"]`).prop('checked', true);
-            });
+            $('#productSections').val(product.sections);
         }
         $('#productActive').prop('checked', product.isActive);
         setImagePreview('#productImagePreview', resolveItemImage(product));
@@ -4382,6 +4380,114 @@ function loadHomepageSectionConfig(sectionType) {
             `;
             break;
             
+        case 'newArrivals':
+            configHtml = `
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <strong>New Arrivals Configuration</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Category (Optional)</label>
+                                <select class="form-select" id="configCategoryId">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Product Limit</label>
+                                <input type="number" class="form-control" id="configLimit" value="20" min="1" max="50">
+                            </div>
+                        </div>
+                        <div class="alert alert-info mt-3">
+                            <strong>Note:</strong> This section will automatically display products with "New Arrival" flag enabled.
+                        </div>
+                    </div>
+                </div>
+            `;
+            loadCategoriesForConfig();
+            break;
+            
+        case 'topSelling':
+            configHtml = `
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <strong>Top Selling Products Configuration</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Category (Optional)</label>
+                                <select class="form-select" id="configCategoryId">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Product Limit</label>
+                                <input type="number" class="form-control" id="configLimit" value="20" min="1" max="50">
+                            </div>
+                        </div>
+                        <div class="alert alert-info mt-3">
+                            <strong>Note:</strong> This section will automatically display products with "Top Selling" flag enabled.
+                        </div>
+                    </div>
+                </div>
+            `;
+            loadCategoriesForConfig();
+            break;
+            
+        case 'featuredCollections':
+            configHtml = `
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <strong>Featured Collections Configuration</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <strong>Note:</strong> This section will automatically display all active subcategories in circles.
+                            <br>• 8 subcategories per row
+                            <br>• 3 rows visible at a time
+                            <br>• Auto-slides every 3 seconds
+                        </div>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'subcategoryGrid':
+            configHtml = `
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <strong>Subcategory Grid Configuration</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Select Subcategories for Grid (6 boxes - 2 rows × 3 columns)</label>
+                            <div id="gridSubcategoriesList" class="border p-3" style="max-height: 200px; overflow-y: auto;">
+                                <p class="text-muted">Loading subcategories...</p>
+                            </div>
+                            <div class="form-text">Select up to 6 subcategories to display in the grid boxes</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Select Subcategories for Button Strip (Red buttons below grid)</label>
+                            <div id="buttonSubcategoriesList" class="border p-3" style="max-height: 200px; overflow-y: auto;">
+                                <p class="text-muted">Loading subcategories...</p>
+                            </div>
+                            <div class="form-text">Select subcategories to display in the auto-sliding red button strip. Leave empty to show all active subcategories.</div>
+                        </div>
+                        <div class="alert alert-info">
+                            <strong>Note:</strong> This section displays 6 big boxes in a 2×3 grid with gradient backgrounds.
+                            <br>• Each box shows a subcategory with its image and description
+                            <br>• Red button strip below auto-slides every 3 seconds
+                        </div>
+                    </div>
+                </div>
+            `;
+            // Store config for later use when loading subcategories
+            window.pendingSubcategoryGridConfig = null;
+            loadSubcategoriesForConfig();
+            break;
+            
         case 'bannerFullWidth':
             configHtml = `
                 <div class="card border-secondary">
@@ -4444,17 +4550,34 @@ function loadHomepageSectionConfig(sectionType) {
                         <strong>Newsletter & Social Configuration</strong>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Newsletter Title</label>
-                            <input type="text" class="form-control" id="configNewsletterTitle" placeholder="Subscribe to our newsletter">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Newsletter Description</label>
-                            <textarea class="form-control" id="configNewsletterDesc" rows="2" placeholder="Get updates on new products and special offers"></textarea>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Social Media Section (Left Side)</h6>
+                                <div class="mb-3">
+                                    <label class="form-label">Social Title</label>
+                                    <input type="text" class="form-control" id="configSocialTitle" placeholder="LET'S CONNECT ON SOCIAL MEDIA">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Social Description</label>
+                                    <textarea class="form-control" id="configSocialDesc" rows="2" placeholder="Follow us to stay updated on latest looks."></textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Newsletter Section (Right Side)</h6>
+                                <div class="mb-3">
+                                    <label class="form-label">Newsletter Title</label>
+                                    <input type="text" class="form-control" id="configNewsletterTitle" placeholder="SIGN UP FOR EXCLUSIVE OFFERS & DISCOUNTS">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Newsletter Description</label>
+                                    <textarea class="form-control" id="configNewsletterDesc" rows="2" placeholder="Stay updated on new deals and news."></textarea>
+                                </div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Social Media Links (JSON format)</label>
-                            <textarea class="form-control" id="configSocialLinks" rows="4" placeholder='{"facebook": "https://facebook.com/page", "instagram": "https://instagram.com/page", "twitter": "https://twitter.com/page"}'></textarea>
+                            <textarea class="form-control" id="configSocialLinks" rows="4" placeholder='{"facebook": "https://facebook.com/page", "instagram": "https://instagram.com/page"}'></textarea>
+                            <div class="form-text">Enter Facebook and Instagram URLs. Example: {"facebook": "https://facebook.com/yourpage", "instagram": "https://instagram.com/yourpage"}</div>
                         </div>
                     </div>
                 </div>
@@ -4557,6 +4680,54 @@ async function loadCategoriesForConfig() {
         }
     } catch (error) {
         console.error('Error loading categories:', error);
+    }
+}
+
+async function loadSubcategoriesForConfig(selectedGridIds = [], selectedButtonIds = []) {
+    try {
+        const subcategories = await $.get('/api/admin/subcategories');
+        let gridHtml = '';
+        let buttonHtml = '';
+        
+        subcategories.forEach(subcat => {
+            if (subcat.isActive) {
+                const isGridChecked = selectedGridIds.includes(subcat._id.toString()) || selectedGridIds.includes(subcat._id);
+                const isButtonChecked = selectedButtonIds.includes(subcat._id.toString()) || selectedButtonIds.includes(subcat._id);
+                
+                const gridChecked = isGridChecked ? 'checked' : '';
+                const buttonChecked = isButtonChecked ? 'checked' : '';
+                
+                const checkbox = `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="gridSubcategoryIds" value="${subcat._id}" id="gridSubcat_${subcat._id}" ${gridChecked}>
+                        <label class="form-check-label" for="gridSubcat_${subcat._id}">${subcat.name}</label>
+                    </div>
+                `;
+                gridHtml += checkbox;
+                
+                const buttonCheckbox = `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="buttonSubcategoryIds" value="${subcat._id}" id="buttonSubcat_${subcat._id}" ${buttonChecked}>
+                        <label class="form-check-label" for="buttonSubcat_${subcat._id}">${subcat.name}</label>
+                    </div>
+                `;
+                buttonHtml += buttonCheckbox;
+            }
+        });
+        
+        if (gridHtml === '') {
+            gridHtml = '<p class="text-muted">No active subcategories found</p>';
+        }
+        if (buttonHtml === '') {
+            buttonHtml = '<p class="text-muted">No active subcategories found</p>';
+        }
+        
+        $('#gridSubcategoriesList').html(gridHtml);
+        $('#buttonSubcategoriesList').html(buttonHtml);
+    } catch (error) {
+        console.error('Error loading subcategories:', error);
+        $('#gridSubcategoriesList').html('<p class="text-danger">Error loading subcategories</p>');
+        $('#buttonSubcategoriesList').html('<p class="text-danger">Error loading subcategories</p>');
     }
 }
 
@@ -4816,6 +4987,7 @@ async function saveHomepageSection() {
             statusText: error.statusText,
             responseJSON: error.responseJSON,
             responseText: error.responseText,
+            payload: payload,
             message: message,
             details: fullErrorDetails
         });
@@ -4905,6 +5077,35 @@ function buildHomepageSectionConfig(sectionType) {
             config.autoplay = $('#configAutoplay').is(':checked');
             break;
             
+        case 'newArrivals':
+            config.categoryId = $('#configCategoryId').val() || null;
+            config.limit = parseInt($('#configLimit').val(), 10) || 20;
+            break;
+            
+        case 'topSelling':
+            config.categoryId = $('#configCategoryId').val() || null;
+            config.limit = parseInt($('#configLimit').val(), 10) || 20;
+            break;
+            
+        case 'featuredCollections':
+            // No configuration needed - displays all active subcategories
+            break;
+            
+        case 'subcategoryGrid':
+            const gridSubcategoryIds = [];
+            $('input[name="gridSubcategoryIds"]:checked').each(function() {
+                gridSubcategoryIds.push($(this).val());
+            });
+            // Always include subcategoryIds and buttonSubcategoryIds, even if empty
+            config.subcategoryIds = gridSubcategoryIds.slice(0, 6); // Limit to 6
+            
+            const buttonSubcategoryIds = [];
+            $('input[name="buttonSubcategoryIds"]:checked').each(function() {
+                buttonSubcategoryIds.push($(this).val());
+            });
+            config.buttonSubcategoryIds = buttonSubcategoryIds.length > 0 ? buttonSubcategoryIds : [];
+            break;
+            
         case 'bannerFullWidth':
             config.bannerId = $('#configBannerId').val() || null;
             break;
@@ -4929,14 +5130,19 @@ function buildHomepageSectionConfig(sectionType) {
             break;
             
         case 'newsletterSocial':
+            config.socialTitle = $('#configSocialTitle').val() || '';
+            config.socialDesc = $('#configSocialDesc').val() || '';
             config.newsletterTitle = $('#configNewsletterTitle').val() || '';
             config.newsletterDesc = $('#configNewsletterDesc').val() || '';
             try {
                 const socialText = $('#configSocialLinks').val().trim();
                 if (socialText) {
                     config.socialLinks = JSON.parse(socialText);
+                } else {
+                    config.socialLinks = {};
                 }
             } catch (e) {
+                console.error('Error parsing social links JSON:', e);
                 config.socialLinks = {};
             }
             break;
@@ -5070,6 +5276,30 @@ function populateHomepageSectionConfig(sectionType, config) {
             if (config.autoplay !== undefined) $('#configAutoplay').prop('checked', config.autoplay);
             break;
             
+        case 'newArrivals':
+            if (config.categoryId) $('#configCategoryId').val(config.categoryId);
+            if (config.limit) $('#configLimit').val(config.limit);
+            break;
+            
+        case 'topSelling':
+            if (config.categoryId) $('#configCategoryId').val(config.categoryId);
+            if (config.limit) $('#configLimit').val(config.limit);
+            break;
+            
+        case 'featuredCollections':
+            // No configuration to populate
+            break;
+            
+        case 'subcategoryGrid':
+            // Store config and reload subcategories with selected IDs
+            const gridIds = config.subcategoryIds && Array.isArray(config.subcategoryIds) ? config.subcategoryIds : [];
+            const buttonIds = config.buttonSubcategoryIds && Array.isArray(config.buttonSubcategoryIds) ? config.buttonSubcategoryIds : [];
+            
+            // Reload subcategories with pre-selected IDs
+            loadSubcategoriesForConfig(gridIds, buttonIds);
+            console.log(`Loading subcategories with ${gridIds.length} grid and ${buttonIds.length} button selections`);
+            break;
+            
         case 'bannerFullWidth':
             if (config.bannerId) $('#configBannerId').val(config.bannerId);
             break;
@@ -5083,9 +5313,13 @@ function populateHomepageSectionConfig(sectionType, config) {
             break;
             
         case 'newsletterSocial':
+            if (config.socialTitle) $('#configSocialTitle').val(config.socialTitle);
+            if (config.socialDesc) $('#configSocialDesc').val(config.socialDesc);
             if (config.newsletterTitle) $('#configNewsletterTitle').val(config.newsletterTitle);
             if (config.newsletterDesc) $('#configNewsletterDesc').val(config.newsletterDesc);
-            if (config.socialLinks) $('#configSocialLinks').val(JSON.stringify(config.socialLinks, null, 2));
+            if (config.socialLinks) {
+                $('#configSocialLinks').val(JSON.stringify(config.socialLinks, null, 2));
+            }
             break;
             
         case 'brandGrid':
