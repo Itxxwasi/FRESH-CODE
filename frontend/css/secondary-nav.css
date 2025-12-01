@@ -1,0 +1,120 @@
+/**
+ * Secondary Navigation Bar Styles
+ * White navigation bar below the red header
+ */
+
+.secondary-nav {
+    display: none !important; /* Hidden - no longer needed */
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #e5e5e5;
+    border-top: none !important;
+    padding: 12px 0;
+    width: 100%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin: 0 !important;
+    margin-top: 0 !important;
+}
+
+.secondary-nav-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.secondary-nav-menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.secondary-nav-menu-bottom {
+    padding-left: 0;
+}
+
+.secondary-nav-item {
+    margin: 0;
+    padding: 0;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.secondary-nav-link {
+    display: inline-block;
+    color: #1979c3 !important;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 4px 0;
+    transition: color 0.2s ease;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    font-family: "Inter", sans-serif;
+    line-height: 1.4;
+}
+
+.secondary-nav-link:hover {
+    color: #145a90 !important;
+    text-decoration: underline;
+    background-color: transparent !important;
+}
+
+.secondary-nav-link-promo {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1979c3 !important;
+}
+
+.secondary-nav-link-promo:hover {
+    color: #145a90 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 991px) {
+    .secondary-nav {
+        display: none; /* Hide on mobile, use mobile menu instead */
+    }
+}
+
+@media (max-width: 1200px) {
+    .secondary-nav-menu {
+        gap: 15px;
+    }
+    
+    .secondary-nav-link {
+        font-size: 13px;
+    }
+    
+    .secondary-nav-link-promo {
+        font-size: 15px;
+    }
+}
+
+/* Ensure no white gaps or artifacts */
+.secondary-nav * {
+    background-color: transparent !important;
+}
+
+.secondary-nav nav,
+.secondary-nav ul,
+.secondary-nav li,
+.secondary-nav a {
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+}
+
+.secondary-nav {
+    background-color: #ffffff !important;
+}
+

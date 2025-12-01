@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>About Us - D.Watson Pharmacy</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/global-fonts.css?v=1">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/mobile-fix.css?v=1">
+    <link rel="stylesheet" href="/css/global-responsive.css?v=1">
+</head>
+<body>
+    <!-- Header -->
+    <!-- Header (dwatsoncosmetics.pk style) -->
+    <header id="header" class="header logo-center_2l header-2-lines">
+        <!-- Top Scrolling Announcement Bar (Will be replaced by scrolling text section) -->
+        <div id="shopify-section-top-header" class="shopify-section cms-top-header" style="display: none;">
+            <!-- This will be replaced by dynamic scrolling text section -->
+        </div>
+
+        <!-- Main Header -->
+        <div class="header-main-wrap">
+            <div class="header-top">
+            <div class="container">
+                    <div class="row align-items-center">
+                        <!-- Mobile Menu Button -->
+                        <div class="col-3 d-lg-none">
+                            <button class="js-mobile-menu btn p-0 border-0 bg-transparent" type="button" aria-label="Toggle navigation">
+                                <span class="icon">
+                                    <i class="fas fa-bars" style="color: #ffffff; font-size: 22px;"></i>
+                                </span>
+                            </button>
+                        </div>
+                        <!-- Search Bar (Left Side) -->
+                        <div class="header-search-left hide-mobile col-md-3">
+                            <div class="header-search-wrapper">
+                                <form action="/products.html" method="get" class="header-search-form">
+                                    <input type="text" name="search" class="header-search-input" placeholder="Search for products ..." autocomplete="off">
+                                    <button type="submit" class="header-search-button" aria-label="Search">
+                                        <i class="icon-search"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Mobile Logo -->
+                        <div class="header-logo hide-desktop flex-1">
+                            <a href="/" class="site-header__logo-image" title="D.Watson">
+                                <img src="/images/logo.png" alt="D.Watson" loading="eager" class="header-logo-img">
+                            </a>
+                        </div>
+
+                        <!-- Desktop Logo (Center) -->
+                        <div class="header-logo hide-mobile col-md-6">
+                            <h1>
+                                <a href="/" class="site-header__logo-image" aria-label="D.Watson">
+                                    <img src="/images/logo.png" alt="D.Watson" loading="eager" class="header-logo-img">
+                                </a>
+                            </h1>
+                        </div>
+
+                        <!-- Right Header Controls (Account, Wishlist, Cart) -->
+                        <div class="header-top-meta col-md-3 col-9">
+                            <ul class="header-control">
+                                <!-- User Icon (Person) - visible on all screen sizes -->
+                                <li class="item-list signin">
+                                    <a href="/login.html" class="header-icon" title="Login">
+                                        <span class="icon"><i class="far fa-user"></i></span>
+                                    </a>
+                                </li>
+                                <!-- Heart Icon (Wishlist) -->
+                                <li class="item-list wishlist hide-mobile">
+                                    <a href="/wishlist.html" class="header-icon" title="Wishlist">
+                                        <span class="icon"><i class="far fa-heart"></i></span>
+                                        <span class="header__counter wishlist-count">0</span>
+                                    </a>
+                                </li>
+                                <!-- Orders Icon (Stacked Items) -->
+                                <li class="item-list notifications hide-mobile">
+                                    <a href="/orders.html" class="header-icon" title="Orders">
+                                        <span class="icon"><i class="far fa-copy"></i></span>
+                                        <span class="header__counter notification-count">0</span>
+                                    </a>
+                                </li>
+                                <!-- Shopping Bag Icon (Cart) -->
+                                <li class="item-list cart-block">
+                                    <a href="/cart.html" class="header-icon cart-icon" title="Cart">
+                                        <span class="icon"><i class="fas fa-shopping-bag"></i></span>
+                                        <span class="header__counter cart-count">0</span>
+                                    </a>
+                                </li>
+                                <!-- Mobile Search Icon -->
+                                <li class="header_search hide-desktop">
+                                    <a href="/search" class="header-search push_side header-icon" data-id="#search_pupop" title="Search">
+                                        <span class="icon"><i class="icon-search"></i></span>
+                                    </a>
+                                </li>
+                            </ul>
+                    </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Navigation -->
+            <div class="header-nav">
+                <div class="header-nav-inner">
+                    <div class="box-header-nav">
+                        <div class="container-wapper">
+                            <nav class="main-menu-wrapper">
+                                <ul id="menu-main-menu" class="main-menu clone-main-menu">
+                                    <li class="menu-item">
+                                        <a href="/products.html?filter=discounted" class="cms-item-title">Sale</a>
+                                    </li>
+                                    <li class="menu-item type_dropdown has-children">
+                                        <a href="#" class="cms-item-title dropdown-toggle nav-category-link" data-category-key="makeup" id="makeupDropdown" data-bs-toggle="dropdown">
+                                            Makeup
+                                            <span class="icon-dropdown"><i class="icon-angle-down"></i></span>
+                                        </a>
+                                        <ul class="dropdown-menu sub-menu" id="makeupMenu">
+                                            <!-- Categories loaded dynamically -->
+                                        </ul>
+                                    </li>
+                                    <li class="menu-item type_dropdown has-children">
+                                        <a href="#" class="cms-item-title dropdown-toggle nav-category-link" data-category-key="skincare" id="skincareDropdown" data-bs-toggle="dropdown">
+                                            Skincare
+                                            <span class="icon-dropdown"><i class="icon-angle-down"></i></span>
+                                        </a>
+                                        <ul class="dropdown-menu sub-menu" id="skincareMenu">
+                                            <!-- Categories loaded dynamically -->
+                                        </ul>
+                        </li>
+                                    <li class="menu-item type_dropdown has-children">
+                                        <a href="#" class="cms-item-title dropdown-toggle nav-category-link" data-category-key="haircare" id="haircareDropdown" data-bs-toggle="dropdown">
+                                            Haircare
+                                            <span class="icon-dropdown"><i class="icon-angle-down"></i></span>
+                                        </a>
+                                        <ul class="dropdown-menu sub-menu" id="haircareMenu">
+                                            <!-- Categories loaded dynamically -->
+                            </ul>
+                        </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="shampoo">Shampoo</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="lingerie">Lingerie</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="perfumes">Perfumes</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="watches">Watches</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="toiletries">Toiletries</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="electronics">Electronics</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="optics">Optics</a>
+                        </li>
+                                    <li class="menu-item">
+                                        <a href="#" class="cms-item-title nav-category-link" data-category-key="toys">Toys</a>
+                        </li>
+                                    <li class="menu-item type_dropdown has-children">
+                                        <a href="#" class="cms-item-title dropdown-toggle" id="departmentsDropdown" data-bs-toggle="dropdown">
+                                            Shop
+                                            <span class="icon-dropdown"><i class="icon-angle-down"></i></span>
+                                        </a>
+                                        <ul class="dropdown-menu sub-menu" id="departmentsMenu">
+                                            <!-- Departments loaded dynamically -->
+                                        </ul>
+                        </li>
+                                    <li class="menu-item">
+                                        <a href="/blog.html" class="cms-item-title">Blog</a>
+                        </li>
+                    </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Menu Panel -->
+    <div class="mobile-menu-panel" id="mobileMenuPanel">
+        <div class="mobile-menu-content">
+            <button class="mobile-menu-close" type="button" aria-label="Close navigation">&times;</button>
+            <ul class="mobile-menu-list" id="mobileMenuList">
+                <li class="menu-item">
+                    <a href="/products.html?filter=discounted" class="cms-item-title">11.11 Sale</a>
+                </li>
+                <li class="menu-item has-children">
+                    <a href="/products.html?category=makeup" class="cms-item-title">
+                        Makeup
+                    </a>
+                    <ul class="dropdown-menu sub-menu" id="mobileMakeupMenu">
+                        <!-- Makeup categories (optional, can be synced later) -->
+                    </ul>
+                </li>
+                <li class="menu-item has-children">
+                    <a href="/products.html?category=skincare" class="cms-item-title">
+                        Skin Care
+                    </a>
+                    <ul class="dropdown-menu sub-menu" id="mobileSkincareMenu">
+                        <!-- Skincare categories (optional, can be synced later) -->
+                    </ul>
+                </li>
+                <li class="menu-item has-children">
+                    <a href="/products.html?category=haircare" class="cms-item-title">
+                        Hair Care
+                    </a>
+                    <ul class="dropdown-menu sub-menu" id="mobileHaircareMenu">
+                        <!-- Haircare categories (optional, can be synced later) -->
+                    </ul>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=shampoo" class="cms-item-title">Shampoo</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=lingerie" class="cms-item-title">Lingerie</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=perfumes" class="cms-item-title">Perfumes</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=watches" class="cms-item-title">Watches</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=toiletries" class="cms-item-title">Toiletries</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=electronics" class="cms-item-title">Electronics</a>
+                </li>
+                <li class="menu-item">
+                    <a href="/products.html?category=optics" class="cms-item-title">Optics</a>
+                </li>
+                <li class="menu-item has-children">
+                    <a href="#" class="cms-item-title">
+                        Shop
+                    </a>
+                    <ul class="dropdown-menu sub-menu" id="mobileDepartmentsMenu">
+                        <!-- Departments can be injected here if needed -->
+                    </ul>
+                </li>
+                <li class="menu-item">
+                    <a href="/blog.html" class="cms-item-title">Blog</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Search Popup -->
+    <div id="search_pupop" class="push-side-panel">
+        <div class="push-side-panel__wrapper">
+            <span class="close-push">×</span>
+            <div class="push-side-panel__content">
+                <h3>Search Products</h3>
+                <form action="/products.html" method="get" class="search-form">
+                    <input type="text" name="search" id="searchInput" placeholder="Search for products..." autocomplete="off">
+                    <button type="submit"><i class="icon-search"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="bg-light py-3">
+            <div class="container">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="/">Home</a></li>
+                    <li class="breadcrumb-item active">About Us</li>
+                </ol>
+            </div>
+        </nav>
+
+        <!-- About Us Hero -->
+        <section class="py-5 bg-primary text-white">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-lg-6">
+                        <h1 class="display-4 mb-4">About D.Watson Pharmacy</h1>
+                        <p class="lead">Trusted healthcare and beauty partner since 1975</p>
+                    </div>
+                    <div class="col-lg-6 text-center">
+                        <img src="/images/logo-white.png" alt="D.Watson Pharmacy" class="img-fluid" style="max-height: 200px;">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Our Story -->
+        <section class="py-5">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <h2 class="mb-4">Our Story</h2>
+                        <p class="lead">D.Watson is a Pakistani retail pharmacy chain founded in 1975 by brothers Zahid and Zafar Iqbal Bakhtawari in Islamabad.</p>
+                        
+                        <p>The company was named in tribute to the English doctor, Dr. Watson, who helped Zafar Iqbal with an eye ailment that almost caused him to lose his sight. This act of kindness and medical expertise inspired the brothers to create a pharmacy that would serve the community with the same dedication and care.</p>
+
+                        <h3 class="mt-5 mb-3">Our Mission</h3>
+                        <p>To provide accessible, affordable, and high-quality healthcare and beauty products to every household in Pakistan. We believe that good health and self-care should be available to everyone, regardless of their location or economic status.</p>
+
+                        <h3 class="mt-5 mb-3">Our Values</h3>
+                        <div class="row g-4 mt-3">
+                            <div class="col-md-6">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <i class="fas fa-heart fa-3x text-primary mb-3"></i>
+                                        <h5>Compassion</h5>
+                                        <p>We care deeply about the health and wellbeing of our customers and their families.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+                                        <h5>Trust</h5>
+                                        <p>For nearly 50 years, we've been a trusted name in healthcare across Pakistan.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <i class="fas fa-award fa-3x text-primary mb-3"></i>
+                                        <h5>Quality</h5>
+                                        <p>We source only the finest products from trusted manufacturers and suppliers.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                                        <h5>Community</h5>
+                                        <p>We're committed to serving our local communities with personalized care and attention.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 class="mt-5 mb-3">Our Journey</h3>
+                        <div class="timeline">
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex">
+                                    <div class="timeline-marker bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; min-width: 50px;">
+                                        <strong>1975</strong>
+                                    </div>
+                                    <div class="ms-4">
+                                        <h5>Foundation</h5>
+                                        <p>Zahid and Zafar Iqbal Bakhtawari founded D.Watson Pharmacy in Islamabad, starting with a single store dedicated to providing quality medicines and healthcare products.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex">
+                                    <div class="timeline-marker bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; min-width: 50px;">
+                                        <strong>1980s</strong>
+                                    </div>
+                                    <div class="ms-4">
+                                        <h5>Expansion</h5>
+                                        <p>Expanded to multiple locations across Islamabad and Rawalpindi, becoming a household name in the twin cities.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex">
+                                    <div class="timeline-marker bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; min-width: 50px;">
+                                        <strong>2000s</strong>
+                                    </div>
+                                    <div class="ms-4">
+                                        <h5>Digital Innovation</h5>
+                                        <p>Launched online presence and e-commerce platform, making healthcare accessible to customers nationwide.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex">
+                                    <div class="timeline-marker bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; min-width: 50px;">
+                                        <strong>Today</strong>
+                                    </div>
+                                    <div class="ms-4">
+                                        <h5>Modern Healthcare</h5>
+                                        <p>Continuing to serve millions of customers with a comprehensive range of medicines, cosmetics, health devices, and wellness products.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Why Choose Us -->
+        <section class="py-5 bg-light">
+            <div class="container">
+                <h2 class="text-center mb-5">Why Choose D.Watson?</h2>
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-pills fa-3x text-primary mb-3"></i>
+                            <h5>Wide Product Range</h5>
+                            <p>From prescription medicines to beauty products, we have everything you need under one roof.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-user-md fa-3x text-primary mb-3"></i>
+                            <h5>Expert Pharmacists</h5>
+                            <p>Our qualified pharmacists are always available to provide guidance and answer your health questions.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-truck fa-3x text-primary mb-3"></i>
+                            <h5>Fast Delivery</h5>
+                            <p>Quick and reliable delivery service to get your products to you when you need them most.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-dollar-sign fa-3x text-primary mb-3"></i>
+                            <h5>Competitive Prices</h5>
+                            <p>Best prices guaranteed with regular offers and discounts on a wide range of products.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-certificate fa-3x text-primary mb-3"></i>
+                            <h5>Authentic Products</h5>
+                            <p>100% genuine products sourced directly from authorized distributors and manufacturers.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-clock fa-3x text-primary mb-3"></i>
+                            <h5>24/7 Online Service</h5>
+                            <p>Shop anytime, anywhere with our convenient online platform available round the clock.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <!-- Footer - Dynamically loaded from database -->
+    <footer class="footer" id="siteFooter">
+        <!-- Footer content will be loaded dynamically from database -->
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js?v=6" defer></script>
+    <script src="/js/about.js"></script>
+</body>
+</html>
+
