@@ -114,4 +114,27 @@ node scripts/restore-main-page-data.js
 # Add sample products
 node scripts/add-sample-products.js
 ```
+```
+# Local Database (Primary - where you work)
+MONGODB_URI=mongodb+srv://ourecomerswebsite_database:m0thbCankSGP2sOz@cluster0.3j7uvr5.mongodb.net/wasidbs?retryWrites=true&w=majority&appName=Cluster0
+#mongodb+srv://wasidev710_db_user:5xwzp9OQcJkMe1Tu@cluster0.ycj6rnq.mongodb.net/newdata?retryWrites=true&w=majority&appName=Cluster0
 
+
+# Live Database (Secondary - for syncing)
+LIVE_MONGODB_URI=mongodb+srv://ourecomerswebsite_database:m0thbCankSGP2sOz@cluster0.3j7uvr5.mongodb.net/wasidbs?retryWrites=true&w=majority&appName=Cluster0
+#mongodb+srv://wasidev710_db_user:5xwzp9OQcJkMe1Tu@cluster0.ycj6rnq.mongodb.net/newdata?retryWrites=true&w=majority&appName=Cluster0
+
+# Server Configuration
+JWT_SECRET=your_jwt_secret_key
+PORT=5000
+ADMIN_EMAIL=admin@dwatson.pk
+ADMIN_PASSWORD=admin123
+
+CLOUDINARY_CLOUD_NAME= dkeocbpww
+CLOUDINARY_API_KEY=471949496217419
+CLOUDINARY_API_SECRET=XsXNMPOS62UQWFQY1o2awXe6GpY
+# Development Mode
+NODE_ENV=development
+
+
+```
