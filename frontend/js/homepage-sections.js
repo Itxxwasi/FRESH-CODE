@@ -3,11 +3,176 @@
  * Renders dynamic homepage sections based on database configuration
  * Matches D.Watson Cosmetics style
  * Optimized for fast loading with parallel rendering and caching
+ * Mobile-first performance optimizations with lazy loading
  */
+
+// ============ Mobile Detection & Configuration ============
+/**
+ * Detect if current device is mobile
+ * @returns {boolean} True if mobile device
+ */
+function isMobile() {
+    // Check window width (most reliable for performance optimization)
+    if (window.innerWidth <= 768) {
+        return true;
+    }
+    // Fallback to user agent detection
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+}
+
+/**
+ * Mobile-specific configuration
+ */
+const MOBILE_CONFIG = {
+    // Product limits - reduced for mobile
+    productCarouselLimit: 6,      // Desktop: 10
+    productTabsLimit: 4,          // Desktop: 8
+    newArrivalsLimit: 6,          // Desktop: 10
+    topSellingLimit: 6,           // Desktop: 10
+    
+    // Intersection Observer settings
+    rootMargin: '200px',          // Start loading 200px before viewport
+    threshold: 0.01,              // Trigger when 1% visible
+    
+    // Parallel loading batch size
+    maxConcurrentRequests: 3,      // Limit concurrent API calls on mobile
+    
+    // Critical sections that load immediately (above-the-fold)
+    criticalSectionTypes: ['heroSlider', 'scrollingText']
+};
+
+/**
+ * Get product limit based on device type
+ * @param {string} sectionType - Type of section
+ * @param {number} defaultLimit - Default limit for desktop
+ * @returns {number} Adjusted limit for current device
+ */
+function getProductLimit(sectionType, defaultLimit) {
+    if (!isMobile()) {
+        return defaultLimit;
+    }
+    
+    switch(sectionType) {
+        case 'productCarousel':
+            return MOBILE_CONFIG.productCarouselLimit;
+        case 'productTabs':
+            return MOBILE_CONFIG.productTabsLimit;
+        case 'newArrivals':
+            return MOBILE_CONFIG.newArrivalsLimit;
+        case 'topSelling':
+            return MOBILE_CONFIG.topSellingLimit;
+        default:
+            // Reduce by 40% for mobile
+            return Math.max(4, Math.floor(defaultLimit * 0.6));
+    }
+}
 
 // Request cache for API calls (5 minute TTL)
 const requestCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// ============ Skeleton Loaders ============
+/**
+ * Render skeleton loader for product sections
+ * @param {string} sectionType - Type of section
+ * @param {number} count - Number of skeleton items
+ * @returns {string} HTML for skeleton loader
+ */
+function renderSectionSkeleton(sectionType, count = 4) {
+    const skeletonCount = isMobile() ? Math.min(count, 4) : count;
+    
+    if (sectionType === 'productCarousel' || sectionType === 'productTabs' || sectionType === 'newArrivals' || sectionType === 'topSelling') {
+        return `
+            <div class="skeleton-loader product-skeleton">
+                <div class="row g-4">
+                    ${Array.from({ length: skeletonCount }).map(() => `
+                        <div class="col-6 col-md-3">
+                            <div class="skeleton-product-card">
+                                <div class="skeleton-image"></div>
+                                <div class="skeleton-content">
+                                    <div class="skeleton-line skeleton-title"></div>
+                                    <div class="skeleton-line skeleton-price"></div>
+                                    <div class="skeleton-line skeleton-button"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    return `
+        <div class="skeleton-loader">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+        </div>
+    `;
+}
+
+// ============ Intersection Observer for Lazy Loading ============
+let intersectionObserver = null;
+
+/**
+ * Initialize Intersection Observer for lazy loading sections
+ * @returns {IntersectionObserver} Observer instance
+ */
+function initIntersectionObserver() {
+    if (intersectionObserver) {
+        return intersectionObserver;
+    }
+    
+    if (!('IntersectionObserver' in window)) {
+        // Fallback for browsers without IntersectionObserver
+        console.warn('IntersectionObserver not supported, loading all sections immediately');
+        return null;
+    }
+    
+    intersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const sectionElement = entry.target;
+                const loadFunction = sectionElement.dataset.loadFunction;
+                
+                if (loadFunction && typeof window[loadFunction] === 'function') {
+                    // Unobserve to prevent multiple calls
+                    intersectionObserver.unobserve(sectionElement);
+                    
+                    // Load the section
+                    window[loadFunction]().catch(err => {
+                        console.error('Error loading lazy section:', err);
+                    });
+                }
+            }
+        });
+    }, {
+        rootMargin: MOBILE_CONFIG.rootMargin,
+        threshold: MOBILE_CONFIG.threshold
+    });
+    
+    return intersectionObserver;
+}
+
+/**
+ * Check if section is critical (should load immediately)
+ * @param {Object} section - Section object
+ * @returns {boolean} True if critical section
+ */
+function isCriticalSection(section) {
+    // Critical sections load immediately (above-the-fold)
+    if (MOBILE_CONFIG.criticalSectionTypes.includes(section.type)) {
+        return true;
+    }
+    
+    // First banner section is also critical
+    if (section.type === 'bannerFullWidth' && section.ordering <= 2) {
+        return true;
+    }
+    
+    return false;
+}
 
 // Helper function to clear cache for a specific URL pattern
 function clearCacheForUrl(urlPattern) {
@@ -221,23 +386,124 @@ async function loadAndRenderHomepageSections() {
             console.log('Hidden old-sections-fallback to prevent showing hardcoded content');
         }
         
-        // STEP 1: Render all non-banner sections first (in order)
+        // STEP 1: Separate critical (above-the-fold) from non-critical sections
+        const criticalSections = [];
+        const nonCriticalSections = [];
+        
+        otherSections.forEach((section, i) => {
+            if (isCriticalSection(section)) {
+                criticalSections.push({ section, index: i });
+            } else {
+                nonCriticalSections.push({ section, index: i });
+            }
+        });
+        
+        console.log(`Section prioritization: ${criticalSections.length} critical, ${nonCriticalSections.length} non-critical`);
+        
+        // Performance mark: Start critical sections
+        performance.mark('critical-sections-start');
+        
+        // STEP 2: Render critical sections immediately (above-the-fold)
         let renderedCount = 0;
         const renderedSectionIds = new Map(); // Track rendered sections by ID for banner positioning
         
-        for (let i = 0; i < otherSections.length; i++) {
-            const section = otherSections[i];
-            console.log(`Rendering section ${i}: "${section.name}" (type: ${section.type}, ordering: ${section.ordering})`);
-            const result = await renderSection(section, i, otherSections, homepageSectionsContainer);
+        for (const { section, index } of criticalSections) {
+            console.log(`[CRITICAL] Rendering section ${index}: "${section.name}" (type: ${section.type})`);
+            const result = await renderSection(section, index, otherSections, homepageSectionsContainer);
             if (result && !result.skip && result.rendered !== false) {
                 renderedCount++;
-                console.log(`✓ Section ${i} "${section.name}" rendered successfully`);
+                console.log(`✓ [CRITICAL] Section ${index} "${section.name}" rendered successfully`);
+                
+                // Track rendered section for banner positioning
+                const renderedElement = homepageSectionsContainer.querySelector(`[data-section-id="${section._id}"]`);
+                if (renderedElement) {
+                    renderedSectionIds.set(section._id, renderedElement);
+                }
             } else if (result && result.skip) {
-                console.log(`⊘ Section ${i} "${section.name}" skipped (rendered elsewhere)`);
+                console.log(`⊘ [CRITICAL] Section ${index} "${section.name}" skipped`);
             } else {
-                console.warn(`⚠ Section ${i} "${section.name}" did not render (result:`, result, `)`);
+                console.warn(`⚠ [CRITICAL] Section ${index} "${section.name}" did not render`);
             }
         }
+        
+        performance.mark('critical-sections-end');
+        performance.measure('critical-sections', 'critical-sections-start', 'critical-sections-end');
+        
+        // STEP 3: Render non-critical sections with lazy loading (Intersection Observer)
+        performance.mark('non-critical-sections-start');
+        
+        const observer = initIntersectionObserver();
+        const lazyLoadPromises = [];
+        
+        for (const { section, index } of nonCriticalSections) {
+            // Create placeholder element with skeleton loader for product sections
+            const needsSkeleton = ['productCarousel', 'productTabs', 'newArrivals', 'topSelling'].includes(section.type);
+            const placeholderHtml = needsSkeleton 
+                ? renderSectionSkeleton(section.type, section.config?.limit || 8)
+                : '<div class="section-placeholder" style="min-height: 200px;"></div>';
+            
+            const placeholderDiv = document.createElement('div');
+            placeholderDiv.className = `homepage-section lazy-section`;
+            placeholderDiv.setAttribute('data-section-id', section._id);
+            placeholderDiv.setAttribute('data-section-type', section.type);
+            placeholderDiv.innerHTML = placeholderHtml;
+            
+            // Create a unique function name for lazy loading
+            const loadFunctionName = `loadSection_${section._id}_${Date.now()}`;
+            
+            // Store section data and create load function
+            window[loadFunctionName] = async () => {
+                console.log(`[LAZY] Loading section ${index}: "${section.name}" (type: ${section.type})`);
+                const loadStartTime = performance.now();
+                
+                try {
+                    const result = await renderSection(section, index, otherSections, homepageSectionsContainer);
+                    const loadDuration = performance.now() - loadStartTime;
+                    
+                    if (result && !result.skip && result.rendered !== false) {
+                        renderedCount++;
+                        console.log(`✓ [LAZY] Section ${index} "${section.name}" loaded in ${loadDuration.toFixed(2)}ms`);
+                        
+                        // Track rendered section for banner positioning
+                        const renderedElement = homepageSectionsContainer.querySelector(`[data-section-id="${section._id}"]`);
+                        if (renderedElement) {
+                            renderedSectionIds.set(section._id, renderedElement);
+                        }
+                    }
+                    
+                    // Replace placeholder with actual content
+                    if (placeholderDiv.parentNode) {
+                        placeholderDiv.remove();
+                    }
+                } catch (error) {
+                    console.error(`[LAZY] Error loading section ${index}:`, error);
+                    placeholderDiv.innerHTML = '<div class="alert alert-warning">Failed to load section. Please refresh.</div>';
+                }
+            };
+            
+            placeholderDiv.setAttribute('data-load-function', loadFunctionName);
+            homepageSectionsContainer.appendChild(placeholderDiv);
+            
+            // Observe the placeholder for lazy loading
+            if (observer) {
+                observer.observe(placeholderDiv);
+            } else {
+                // Fallback: Load immediately if IntersectionObserver not supported
+                lazyLoadPromises.push(window[loadFunctionName]());
+            }
+        }
+        
+        // If IntersectionObserver is not supported, load all sections in parallel batches
+        if (!observer && lazyLoadPromises.length > 0) {
+            const batchSize = MOBILE_CONFIG.maxConcurrentRequests;
+            for (let i = 0; i < lazyLoadPromises.length; i += batchSize) {
+                const batch = lazyLoadPromises.slice(i, i + batchSize);
+                await Promise.all(batch);
+            }
+        }
+        
+        performance.mark('non-critical-sections-end');
+        performance.measure('non-critical-sections', 'non-critical-sections-start', 'non-critical-sections-end');
         
         // Update renderedSectionIds map with all currently rendered sections
         const allRenderedSections = homepageSectionsContainer.querySelectorAll('[data-section-id]');
@@ -249,32 +515,116 @@ async function loadAndRenderHomepageSections() {
         });
         console.log(`Tracked ${renderedSectionIds.size} sections for banner positioning`);
         
-        // STEP 2: Render banner sections based on their location config
-        console.log(`\n=== Rendering ${bannerSections.length} banner sections based on location ===`);
-        for (let i = 0; i < bannerSections.length; i++) {
-            const bannerSection = bannerSections[i];
+        // STEP 4: Render banner sections based on their location config
+        // Separate critical banners (first 2) from non-critical
+        const criticalBanners = bannerSections.filter(b => b.ordering <= 2);
+        const nonCriticalBanners = bannerSections.filter(b => b.ordering > 2);
+        
+        console.log(`\n=== Rendering ${bannerSections.length} banner sections: ${criticalBanners.length} critical, ${nonCriticalBanners.length} lazy ===`);
+        
+        // Render critical banners immediately
+        for (let i = 0; i < criticalBanners.length; i++) {
+            const bannerSection = criticalBanners[i];
             const location = bannerSection.config?.location || 'bottom';
-            console.log(`Banner "${bannerSection.name}": location="${location}", ordering=${bannerSection.ordering}`);
+            console.log(`[CRITICAL BANNER] "${bannerSection.name}": location="${location}"`);
             
             const result = await renderBannerSectionWithLocation(bannerSection, location, renderedSectionIds, homepageSectionsContainer);
             if (result && result.rendered !== false) {
                 renderedCount++;
-                console.log(`✓ Banner "${bannerSection.name}" rendered successfully at location "${location}"`);
-            } else {
-                console.warn(`⚠ Banner "${bannerSection.name}" did not render (result:`, result, `)`);
+                console.log(`✓ [CRITICAL BANNER] "${bannerSection.name}" rendered successfully`);
             }
         }
         
-        // Log summary
+        // Render non-critical banners with lazy loading
+        for (let i = 0; i < nonCriticalBanners.length; i++) {
+            const bannerSection = nonCriticalBanners[i];
+            const location = bannerSection.config?.location || 'bottom';
+            
+            // Create placeholder for lazy banner
+            const placeholderDiv = document.createElement('div');
+            placeholderDiv.className = 'homepage-section lazy-section lazy-banner';
+            placeholderDiv.setAttribute('data-section-id', bannerSection._id);
+            placeholderDiv.setAttribute('data-section-type', 'bannerFullWidth');
+            placeholderDiv.style.minHeight = '200px';
+            placeholderDiv.innerHTML = '<div class="skeleton-loader banner-skeleton"><div class="skeleton-image"></div></div>';
+            
+            // Insert placeholder at appropriate location
+            const targetElement = findBannerTargetElement(location, renderedSectionIds, homepageSectionsContainer);
+            if (targetElement) {
+                if (location.startsWith('after-')) {
+                    targetElement.insertAdjacentElement('afterend', placeholderDiv);
+                } else if (location.startsWith('before-')) {
+                    targetElement.insertAdjacentElement('beforebegin', placeholderDiv);
+                } else {
+                    homepageSectionsContainer.appendChild(placeholderDiv);
+                }
+            } else {
+                homepageSectionsContainer.appendChild(placeholderDiv);
+            }
+            
+            // Create lazy load function
+            const loadFunctionName = `loadBanner_${bannerSection._id}_${Date.now()}`;
+            window[loadFunctionName] = async () => {
+                console.log(`[LAZY BANNER] Loading "${bannerSection.name}" at location "${location}"`);
+                const loadStartTime = performance.now();
+                
+                try {
+                    const result = await renderBannerSectionWithLocation(bannerSection, location, renderedSectionIds, homepageSectionsContainer);
+                    const loadDuration = performance.now() - loadStartTime;
+                    
+                    if (result && result.rendered !== false) {
+                        renderedCount++;
+                        console.log(`✓ [LAZY BANNER] "${bannerSection.name}" loaded in ${loadDuration.toFixed(2)}ms`);
+                    }
+                    
+                    // Remove placeholder
+                    if (placeholderDiv.parentNode) {
+                        placeholderDiv.remove();
+                    }
+                } catch (error) {
+                    console.error(`[LAZY BANNER] Error loading "${bannerSection.name}":`, error);
+                    placeholderDiv.innerHTML = '<div class="alert alert-warning">Failed to load banner.</div>';
+                }
+            };
+            
+            placeholderDiv.setAttribute('data-load-function', loadFunctionName);
+            
+            // Observe for lazy loading
+            if (observer) {
+                observer.observe(placeholderDiv);
+            } else {
+                // Fallback: Load immediately
+                window[loadFunctionName]();
+            }
+        }
+        
+        // Performance monitoring and summary
         const loadDuration = performance.now() - startTime;
+        const criticalMeasure = performance.getEntriesByName('critical-sections')[0];
+        const nonCriticalMeasure = performance.getEntriesByName('non-critical-sections')[0];
+        
         const summaryMsg = `Homepage sections loaded: ${renderedCount}/${sections.length} sections rendered in ${loadDuration.toFixed(2)}ms`;
+        const performanceDetails = {
+            total: sections.length,
+            rendered: renderedCount,
+            critical: criticalSections.length,
+            nonCritical: nonCriticalSections.length,
+            totalDuration: loadDuration.toFixed(2) + 'ms',
+            deviceType: isMobile() ? 'mobile' : 'desktop',
+            criticalDuration: criticalMeasure ? criticalMeasure.duration.toFixed(2) + 'ms' : 'N/A',
+            nonCriticalDuration: nonCriticalMeasure ? nonCriticalMeasure.duration.toFixed(2) + 'ms' : 'N/A'
+        };
+        
         console.log(summaryMsg);
+        console.log('Performance details:', performanceDetails);
+        
         if (typeof window.Logger !== 'undefined') {
-            window.Logger.info(summaryMsg, { 
-                rendered: renderedCount, 
-                total: sections.length, 
-                duration: loadDuration 
-            });
+            window.Logger.info(summaryMsg, performanceDetails);
+        }
+        
+        // Store performance metrics for analytics
+        if (typeof window !== 'undefined') {
+            window.homepageLoadPerformance = performanceDetails;
         }
         
         // Initialize carousels and interactive elements after rendering
@@ -288,6 +638,34 @@ async function loadAndRenderHomepageSections() {
             console.error(errorMsg, error);
         }
     }
+}
+
+// Helper function to find target element for banner placement
+function findBannerTargetElement(location, renderedSectionIds, container) {
+    if (location === 'top' || location === 'bottom') {
+        return null; // These are handled separately
+    }
+    
+    // Handle "after-section-{id}" or "before-section-{id}"
+    if (location.startsWith('after-section-') || location.startsWith('before-section-')) {
+        const sectionId = location.split('-').slice(2).join('-');
+        return renderedSectionIds.get(sectionId) || container.querySelector(`[data-section-id="${sectionId}"]`);
+    }
+    
+    // Handle "after-hero" or "before-{sectionName}"
+    if (location.startsWith('after-') || location.startsWith('before-')) {
+        const targetName = location.split('-').slice(1).join('-');
+        // Try to find by section type or name
+        const candidates = container.querySelectorAll('[data-section-type], [data-section-id]');
+        for (const candidate of candidates) {
+            const sectionType = candidate.getAttribute('data-section-type');
+            if (sectionType === targetName || sectionType === 'heroSlider') {
+                return candidate;
+            }
+        }
+    }
+    
+    return null;
 }
 
 // Helper function to render banner section based on location config
@@ -1201,7 +1579,8 @@ async function loadTabProducts(section, tab, sectionIndex, tabIndex) {
     try {
         const categoryId = section.config?.categoryId || tab.categoryId || '';
         const filter = tab.filter || '';
-        const limit = tab.limit || 8;
+        const defaultLimit = tab.limit || 8;
+        const limit = getProductLimit('productTabs', defaultLimit);
         
         let url = '/api/products?limit=' + limit;
         if (categoryId) url += '&categoryId=' + categoryId;
@@ -1314,7 +1693,8 @@ async function loadTabProducts(section, tab, sectionIndex, tabIndex) {
 async function renderProductCarousel(section, index) {
     try {
         const categoryId = section.config?.categoryId || '';
-        const limit = section.config?.limit || 10;
+        const defaultLimit = section.config?.limit || 10;
+        const limit = getProductLimit('productCarousel', defaultLimit);
         const autoplay = section.config?.autoplay !== false;
 
         // Derive section filter (product "section" name) from config or section title/name
@@ -2840,7 +3220,7 @@ function renderCustomHTML(section, index) {
 }
 
 // Helper: Render Product Card
-function renderProductCard(product) {
+function renderProductCard(product, isAboveFold = false) {
     const imageUrl = product.imageUpload?.url || product.image || getGlobalFallbackImage();
     const finalPrice = product.price * (1 - (product.discount || 0) / 100);
     const hasDiscount = product.discount > 0;
@@ -2858,7 +3238,8 @@ function renderProductCard(product) {
                 <a href="/product/${productId}" class="product-card__link">
                     <img src="${htmlEscape(imageUrl)}" 
                          alt="${htmlEscape(product.imageAlt || product.name)}" 
-                         loading="lazy"
+                         loading="${isAboveFold ? 'eager' : 'lazy'}"
+                         ${isAboveFold ? 'fetchpriority="high"' : ''}
                          style="width: 100%; height: 100%; object-fit: cover;">
                 </a>
                 ${hasDiscount ? `<span class="product-card__badge product-card__badge--discount">-${product.discount}%</span>` : ''}
