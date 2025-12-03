@@ -174,10 +174,14 @@ async function loadAndRenderHomepageSections() {
         // Sort by ordering
         sections.sort((a, b) => (a.ordering || 0) - (b.ordering || 0));
         
-        // Keep all sections including categoryCircles
+        // Separate banner sections from other sections
+        const bannerSections = sections.filter(s => s.type === 'bannerFullWidth');
+        const otherSections = sections.filter(s => s.type !== 'bannerFullWidth');
+        
+        console.log(`Sections breakdown: ${otherSections.length} regular sections, ${bannerSections.length} banner sections`);
         
         if (typeof window.Logger !== 'undefined') {
-            window.Logger.info(`Found ${sections.length} homepage sections`, { count: sections.length });
+            window.Logger.info(`Found ${sections.length} homepage sections`, { count: sections.length, banners: bannerSections.length });
         }
         
         // Render each section
@@ -217,15 +221,14 @@ async function loadAndRenderHomepageSections() {
             console.log('Hidden old-sections-fallback to prevent showing hardcoded content');
         }
         
-        // Render sections in their exact order to maintain proper sequence
-        // First scrolling text goes at top before header, others render in normal order
+        // STEP 1: Render all non-banner sections first (in order)
         let renderedCount = 0;
+        const renderedSectionIds = new Map(); // Track rendered sections by ID for banner positioning
         
-        // Render sections sequentially to maintain proper order (especially for announcement bars after slider)
-        for (let i = 0; i < sections.length; i++) {
-            const section = sections[i];
+        for (let i = 0; i < otherSections.length; i++) {
+            const section = otherSections[i];
             console.log(`Rendering section ${i}: "${section.name}" (type: ${section.type}, ordering: ${section.ordering})`);
-            const result = await renderSection(section, i, sections, homepageSectionsContainer);
+            const result = await renderSection(section, i, otherSections, homepageSectionsContainer);
             if (result && !result.skip && result.rendered !== false) {
                 renderedCount++;
                 console.log(`✓ Section ${i} "${section.name}" rendered successfully`);
@@ -233,6 +236,32 @@ async function loadAndRenderHomepageSections() {
                 console.log(`⊘ Section ${i} "${section.name}" skipped (rendered elsewhere)`);
             } else {
                 console.warn(`⚠ Section ${i} "${section.name}" did not render (result:`, result, `)`);
+            }
+        }
+        
+        // Update renderedSectionIds map with all currently rendered sections
+        const allRenderedSections = homepageSectionsContainer.querySelectorAll('[data-section-id]');
+        allRenderedSections.forEach(element => {
+            const sectionId = element.getAttribute('data-section-id');
+            if (sectionId) {
+                renderedSectionIds.set(sectionId, element);
+            }
+        });
+        console.log(`Tracked ${renderedSectionIds.size} sections for banner positioning`);
+        
+        // STEP 2: Render banner sections based on their location config
+        console.log(`\n=== Rendering ${bannerSections.length} banner sections based on location ===`);
+        for (let i = 0; i < bannerSections.length; i++) {
+            const bannerSection = bannerSections[i];
+            const location = bannerSection.config?.location || 'bottom';
+            console.log(`Banner "${bannerSection.name}": location="${location}", ordering=${bannerSection.ordering}`);
+            
+            const result = await renderBannerSectionWithLocation(bannerSection, location, renderedSectionIds, homepageSectionsContainer);
+            if (result && result.rendered !== false) {
+                renderedCount++;
+                console.log(`✓ Banner "${bannerSection.name}" rendered successfully at location "${location}"`);
+            } else {
+                console.warn(`⚠ Banner "${bannerSection.name}" did not render (result:`, result, `)`);
             }
         }
         
@@ -258,6 +287,118 @@ async function loadAndRenderHomepageSections() {
         } else {
             console.error(errorMsg, error);
         }
+    }
+}
+
+// Helper function to render banner section based on location config
+async function renderBannerSectionWithLocation(bannerSection, location, renderedSectionIds, container) {
+    const renderer = HOMEPAGE_SECTION_RENDERERS[bannerSection.type];
+    if (!renderer) {
+        console.error(`No renderer found for banner section type: "${bannerSection.type}"`);
+        return { rendered: false, reason: `No renderer for type: ${bannerSection.type}` };
+    }
+    
+    try {
+        console.log(`Rendering banner "${bannerSection.name}" at location: "${location}"`);
+        const bannerElement = await renderer(bannerSection, -1); // Use -1 as index since it's not in the main array
+        
+        if (!bannerElement) {
+            console.warn(`Banner "${bannerSection.name}" renderer returned null`);
+            return { rendered: false, reason: 'Renderer returned null' };
+        }
+        
+        // Convert string to element if needed
+        let elementToInsert = bannerElement;
+        if (typeof bannerElement === 'string') {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = bannerElement;
+            elementToInsert = wrapper.firstElementChild;
+        }
+        
+        if (!elementToInsert) {
+            console.warn(`Banner "${bannerSection.name}" element is null after conversion`);
+            return { rendered: false, reason: 'Element is null' };
+        }
+        
+        // Handle different location values
+        if (location === 'top') {
+            // Insert at the beginning of container
+            if (container.firstChild) {
+                container.insertBefore(elementToInsert, container.firstChild);
+            } else {
+                container.appendChild(elementToInsert);
+            }
+            console.log(`✓ Banner "${bannerSection.name}" inserted at top`);
+            return { rendered: true };
+        } else if (location === 'bottom') {
+            // Append at the end
+            container.appendChild(elementToInsert);
+            console.log(`✓ Banner "${bannerSection.name}" appended at bottom`);
+            return { rendered: true };
+        } else if (location.startsWith('after-')) {
+            // Location format: "after-{sectionId}" or "after-hero", "after-slider", etc.
+            const targetIdentifier = location.replace('after-', '');
+            console.log(`Looking for section: "${targetIdentifier}" to insert banner after it`);
+            
+            let targetElement = null;
+            
+            // First try to find by section ID (MongoDB ObjectId format)
+            if (targetIdentifier.match(/^[0-9a-fA-F]{24}$/)) {
+                // Looks like a MongoDB ObjectId
+                targetElement = renderedSectionIds.get(targetIdentifier) || 
+                               container.querySelector(`[data-section-id="${targetIdentifier}"]`);
+            }
+            
+            // If not found by ID, try to find by section type or name
+            if (!targetElement) {
+                // Try common section types
+                if (targetIdentifier.toLowerCase() === 'hero' || targetIdentifier.toLowerCase() === 'slider') {
+                    targetElement = container.querySelector('[data-section-type="heroSlider"]');
+                } else if (targetIdentifier.toLowerCase() === 'categories') {
+                    targetElement = container.querySelector('[data-section-type="categoryFeatured"], [data-section-type="categoryGrid"], [data-section-type="categoryCircles"]');
+                } else {
+                    // Try to find by section name (case-insensitive partial match)
+                    const allSections = container.querySelectorAll('[data-section-id]');
+                    for (const section of allSections) {
+                        const sectionName = section.getAttribute('data-section-name') || 
+                                          section.querySelector('h2, h3')?.textContent || '';
+                        if (sectionName.toLowerCase().includes(targetIdentifier.toLowerCase())) {
+                            targetElement = section;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // If still not found, try direct query by section ID attribute
+            if (!targetElement) {
+                targetElement = container.querySelector(`[data-section-id="${targetIdentifier}"]`);
+            }
+            
+            if (targetElement) {
+                // Insert after the target section
+                if (targetElement.nextSibling) {
+                    container.insertBefore(elementToInsert, targetElement.nextSibling);
+                } else {
+                    container.appendChild(elementToInsert);
+                }
+                console.log(`✓ Banner "${bannerSection.name}" inserted after "${targetIdentifier}"`);
+                return { rendered: true };
+            } else {
+                // Target section not found, append at bottom as fallback
+                console.warn(`Target section "${targetIdentifier}" not found, appending banner at bottom`);
+                container.appendChild(elementToInsert);
+                return { rendered: true };
+            }
+        } else {
+            // Unknown location, append at bottom as fallback
+            console.warn(`Unknown location "${location}", appending banner at bottom`);
+            container.appendChild(elementToInsert);
+            return { rendered: true };
+        }
+    } catch (error) {
+        console.error(`Error rendering banner section "${bannerSection.name}":`, error);
+        return { rendered: false, reason: error.message };
     }
 }
 
@@ -393,9 +534,66 @@ async function renderSection(section, index, allSections, container) {
                 const firstChild = wrapper.firstElementChild;
                 if (firstChild) {
                     container.appendChild(firstChild);
+                    console.log(`Section "${section.name}" appended to container (string)`);
                 }
             } else if (sectionElement instanceof Node) {
                 container.appendChild(sectionElement);
+                console.log(`Section "${section.name}" appended to container (Node)`, {
+                    elementType: sectionElement.tagName,
+                    classes: sectionElement.className,
+                    parent: container.id || container.className
+                });
+                
+                // Track this section's element for banner positioning (if not a banner)
+                if (section.type !== 'bannerFullWidth' && section._id) {
+                    const trackedElement = sectionElement.querySelector(`[data-section-id="${section._id}"]`) || sectionElement;
+                    if (trackedElement && trackedElement.hasAttribute('data-section-id')) {
+                        // This will be used by renderBannerSectionWithLocation
+                        console.log(`Tracked section "${section.name}" (ID: ${section._id}) for banner positioning`);
+                    }
+                }
+                
+                // For banner sections, verify image is present
+                if (section.type === 'bannerFullWidth') {
+                    const img = sectionElement.querySelector('img');
+                    if (img) {
+                        console.log('Banner image found:', {
+                            src: img.src,
+                            width: img.width,
+                            height: img.height,
+                            naturalWidth: img.naturalWidth,
+                            naturalHeight: img.naturalHeight
+                        });
+                        
+                        // Add error handler for image loading
+                        img.onerror = function() {
+                            console.error('Banner image failed to load:', img.src);
+                            // Don't hide, show error placeholder instead
+                            this.style.backgroundColor = '#f0f0f0';
+                            this.alt = 'Image failed to load';
+                        };
+                        
+                        img.onload = function() {
+                            console.log('Banner image loaded successfully:', {
+                                src: img.src,
+                                naturalWidth: img.naturalWidth,
+                                naturalHeight: img.naturalHeight
+                            });
+                            // Add loaded class for fade-in effect if needed
+                            this.classList.add('loaded');
+                            // Ensure image is visible
+                            this.style.opacity = '1';
+                            this.style.visibility = 'visible';
+                        };
+                        
+                        // If image is already loaded (cached), trigger onload
+                        if (img.complete && img.naturalHeight !== 0) {
+                            img.onload();
+                        }
+                    } else {
+                        console.warn('Banner section has no image element!');
+                    }
+                }
             }
             
             if (typeof window.Logger !== 'undefined') {
@@ -1761,14 +1959,42 @@ function initFeaturedCollectionsCarousel(containerSelector, totalItems) {
 
 // Render Banner Full Width
 async function renderBannerFullWidth(section, index) {
-    const bannerId = section.config?.bannerId;
-    if (!bannerId) {
+    console.log('renderBannerFullWidth called:', { 
+        sectionId: section._id, 
+        sectionName: section.name, 
+        ordering: section.ordering,
+        config: section.config 
+    });
+    
+    const config = section.config || {};
+    const bannerId = config.bannerId;
+    const imageUrl = config.imageUrl;
+    
+    console.log('Banner config:', { bannerId, imageUrl, hasConfig: !!config });
+    
+    // Support both new approach (direct image URL) and legacy approach (banner ID)
+    if (!bannerId && !imageUrl) {
+        const errorMsg = `Banner section "${section.name}" (ID: ${section._id}) has no banner ID or image URL. Config: ${JSON.stringify(config)}`;
         if (typeof window.Logger !== 'undefined') {
-            window.Logger.warn('Banner section has no banner ID', { sectionId: section._id });
+            window.Logger.warn('Banner section has no banner ID or image URL', { sectionId: section._id, config });
+        } else {
+            console.warn(errorMsg);
         }
         return null;
     }
     
+    // NEW APPROACH: Direct image URL from config (preferred)
+    if (imageUrl) {
+        console.log('Using direct image URL approach for banner:', imageUrl);
+        const result = renderBannerFromConfig(section, config, imageUrl);
+        console.log('Banner rendered from config:', result ? 'Success' : 'Failed');
+        return result;
+    }
+    
+    // LEGACY APPROACH: Fetch banner by ID (only if no imageUrl)
+    console.log('Using legacy banner ID approach:', bannerId);
+    
+    // LEGACY APPROACH: Fetch banner by ID
     try {
         // Use cache-busting to ensure we get fresh data after banner deletions
         const bannerResponse = await fetch(`/api/banners/detail/${bannerId}?_t=${Date.now()}`);
@@ -1776,6 +2002,12 @@ async function renderBannerFullWidth(section, index) {
         if (!bannerResponse.ok) {
             // Handle 404 (banner not found) or 401 (unauthorized) gracefully - try fallback
             if (bannerResponse.status === 404 || bannerResponse.status === 401) {
+                // If we have imageUrl as fallback, use it
+                if (imageUrl) {
+                    console.log('Banner ID not found, using imageUrl from config instead');
+                    return renderBannerFromConfig(section, config, imageUrl);
+                }
+                
                 if (typeof window.Logger !== 'undefined') {
                     window.Logger.warn(`Banner not found or unauthorized (${bannerResponse.status}), trying fallback`, { bannerId, sectionId: section._id });
                 } else {
@@ -1815,6 +2047,12 @@ async function renderBannerFullWidth(section, index) {
         const banner = await bannerResponse.json();
         
         if (!banner || !banner.isActive) {
+            // If banner is inactive but we have imageUrl, use it
+            if (imageUrl) {
+                console.log('Banner is inactive, using imageUrl from config instead');
+                return renderBannerFromConfig(section, config, imageUrl);
+            }
+            
             if (typeof window.Logger !== 'undefined') {
                 window.Logger.warn('Banner is inactive or not found', { bannerId, sectionId: section._id, bannerActive: banner?.isActive });
             }
@@ -1823,6 +2061,12 @@ async function renderBannerFullWidth(section, index) {
         
         return renderBannerHTML(banner, section);
     } catch (error) {
+        // If error occurs but we have imageUrl, use it as fallback
+        if (imageUrl) {
+            console.log('Error fetching banner, using imageUrl from config instead:', error);
+            return renderBannerFromConfig(section, config, imageUrl);
+        }
+        
         if (typeof window.Logger !== 'undefined') {
             window.Logger.error('Error rendering banner', error, { bannerId, sectionId: section._id });
         } else {
@@ -1830,6 +2074,113 @@ async function renderBannerFullWidth(section, index) {
         }
         return null;
     }
+}
+
+// New function to render banner directly from config (without fetching banner object)
+function renderBannerFromConfig(section, config, imageUrl) {
+    console.log('Rendering banner from config:', { sectionId: section._id, sectionName: section.name, imageUrl, config });
+    
+    if (!imageUrl || !imageUrl.trim()) {
+        console.error('Banner section has no image URL:', section._id);
+        return null;
+    }
+    
+    const bannerTitle = section.title || config.title || '';
+    const bannerDescription = section.description || config.description || '';
+    const bannerLink = config.link || '#';
+    const hasTitle = bannerTitle && bannerTitle.trim().length > 0;
+    
+    // Get dimensions from config
+    const width = config.width || 'full';
+    const height = config.height || 'auto';
+    const customWidth = config.customWidth;
+    const customHeight = config.customHeight;
+    const mobileHeight = config.mobileHeight;
+    const tabletHeight = config.tabletHeight;
+    const desktopHeight = config.desktopHeight;
+    
+    // Build CSS classes for responsive banner
+    let bannerClasses = 'homepage-banner-section';
+    if (width === 'full') {
+        bannerClasses += ' homepage-banner-section--full-width';
+    } else if (width === 'container') {
+        bannerClasses += ' homepage-banner-section--container-width';
+    } else if (width === 'custom') {
+        bannerClasses += ' homepage-banner-section--custom-width';
+    }
+    
+    if (height === 'auto') {
+        bannerClasses += ' homepage-banner-section--height-auto';
+    } else if (height === 'small') {
+        bannerClasses += ' homepage-banner-section--height-small';
+    } else if (height === 'medium') {
+        bannerClasses += ' homepage-banner-section--height-medium';
+    } else if (height === 'large') {
+        bannerClasses += ' homepage-banner-section--height-large';
+    }
+    
+    // Build inline styles for custom dimensions
+    let containerStyle = '';
+    let imageStyle = '';
+    
+    if (width === 'custom' && customWidth) {
+        containerStyle += `max-width: ${customWidth}px;`;
+    }
+    
+    if (height === 'custom' && customHeight) {
+        imageStyle += `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;`;
+    }
+    
+    // Add responsive height data attributes
+    let dataAttrs = '';
+    if (mobileHeight) dataAttrs += ` data-mobile-height="${mobileHeight}"`;
+    if (tabletHeight) dataAttrs += ` data-tablet-height="${tabletHeight}"`;
+    if (desktopHeight) dataAttrs += ` data-desktop-height="${desktopHeight}"`;
+    
+    // Build responsive height CSS variables
+    let responsiveStyles = '';
+    if (mobileHeight) responsiveStyles += `--mobile-height: ${mobileHeight}px;`;
+    if (tabletHeight) responsiveStyles += `--tablet-height: ${tabletHeight}px;`;
+    if (desktopHeight) responsiveStyles += `--desktop-height: ${desktopHeight}px;`;
+    
+    const imageAlt = section.name || bannerTitle || 'Banner';
+    // Don't escape image URL - URLs can contain special characters that are valid
+    // Only escape the alt text and other text content
+    const mediaContent = `<img src="${imageUrl}" alt="${htmlEscape(imageAlt)}" class="homepage-banner-section__image" loading="lazy" style="${imageStyle}">`;
+    
+    const sectionHtml = `
+        <section class="${bannerClasses} homepage-section" data-section-type="bannerFullWidth" data-section-id="${section._id}"${dataAttrs} style="${responsiveStyles}">
+            ${hasTitle ? `
+                <div class="container">
+                    <div class="banner-full-width__header">
+                        <h2 class="banner-full-width__title">${htmlEscape(bannerTitle)}</h2>
+                        ${bannerDescription ? `<p class="banner-full-width__description">${htmlEscape(bannerDescription)}</p>` : ''}
+                    </div>
+                </div>
+            ` : ''}
+            <div class="homepage-banner-section__container" style="${containerStyle}">
+                <a href="${bannerLink}" class="homepage-banner-section__link">
+                    ${mediaContent}
+                </a>
+            </div>
+        </section>
+    `;
+    
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = sectionHtml.trim();
+    const bannerElement = wrapper.firstElementChild;
+    
+    if (bannerElement) {
+        console.log('Banner element created successfully:', {
+            classes: bannerElement.className,
+            hasImage: !!bannerElement.querySelector('img'),
+            imageSrc: bannerElement.querySelector('img')?.src
+        });
+    } else {
+        console.error('Failed to create banner element from HTML');
+    }
+    
+    return bannerElement;
 }
 
 function renderBannerHTML(banner, section) {

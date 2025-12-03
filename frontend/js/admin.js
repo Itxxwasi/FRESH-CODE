@@ -4122,6 +4122,11 @@ function resetHomepageSectionForm() {
     $('#homepageSectionDisplayTablet').prop('checked', true);
     $('#homepageSectionDisplayMobile').prop('checked', true);
     $('#homepageSectionConfigArea').html('');
+    // Clear banner image fields
+    $('#configBannerImageUrl').val('');
+    $('#configBannerImageFile').val('');
+    $('#configBannerImagePreview').html('<span class="text-muted">No image selected</span>');
+    window.bannerImageMediaId = {};
 }
 
 function loadHomepageSectionConfig(sectionType) {
@@ -4492,18 +4497,163 @@ function loadHomepageSectionConfig(sectionType) {
             configHtml = `
                 <div class="card border-secondary">
                     <div class="card-header bg-secondary text-white">
-                        <strong>Full-Width Banner Configuration</strong>
+                        <strong>Banner Section Configuration</strong>
                     </div>
                     <div class="card-body">
+                        <!-- Image Upload Section -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Banner Image <span class="text-danger">*</span></label>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Image URL</label>
+                                    <input type="text" class="form-control" id="configBannerImageUrl" placeholder="https://example.com/image.jpg">
+                                    <div class="form-text">Or upload an image file below</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Upload Image File</label>
+                                    <input type="file" class="form-control" id="configBannerImageFile" accept="image/*">
+                                    <div class="form-text">Max size: 20MB (JPG, PNG, GIF, WebP)</div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <label class="form-label">Image Preview</label>
+                                <div id="configBannerImagePreview" class="border rounded p-2" style="min-height: 150px; background: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                                    <span class="text-muted">No image selected</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Location Dropdown -->
                         <div class="mb-3">
-                            <label class="form-label">Select Banner (will be loaded from Banners section)</label>
-                            <select class="form-select" id="configBannerId">
-                                <option value="">Select Banner</option>
+                            <label class="form-label fw-bold">Location (Position on Homepage)</label>
+                            <select class="form-select" id="configBannerLocation">
+                                <option value="top">Top (Before all sections)</option>
+                                <option value="bottom">Bottom (After all sections)</option>
                             </select>
+                            <div class="form-text">Select where this banner should appear relative to other sections</div>
+                        </div>
+                        
+                        <!-- Dimensions Section -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Banner Dimensions</label>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Width</label>
+                                    <select class="form-select" id="configBannerWidth">
+                                        <option value="full">Full Width (100%)</option>
+                                        <option value="container">Container Width (max-width: 1200px)</option>
+                                        <option value="custom">Custom Width</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Height</label>
+                                    <select class="form-select" id="configBannerHeight">
+                                        <option value="auto">Auto (Maintain Aspect Ratio)</option>
+                                        <option value="small">Small (200px)</option>
+                                        <option value="medium">Medium (400px)</option>
+                                        <option value="large">Large (600px)</option>
+                                        <option value="custom">Custom Height</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Custom Dimensions -->
+                        <div class="mb-3" id="configBannerCustomDimensions" style="display: none;">
+                            <label class="form-label fw-bold">Custom Dimensions</label>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Custom Width (px)</label>
+                                    <input type="number" class="form-control" id="configBannerCustomWidth" min="100" max="5000" placeholder="e.g., 1200">
+                                    <div class="form-text">Leave empty for auto</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Custom Height (px)</label>
+                                    <input type="number" class="form-control" id="configBannerCustomHeight" min="50" max="2000" placeholder="e.g., 400">
+                                    <div class="form-text">Leave empty for auto</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Responsive Settings (Mobile-First) -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mobile-First Responsive Settings</label>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Banner will be fully responsive and optimized for mobile devices first.
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Mobile Height</label>
+                                    <select class="form-select" id="configBannerMobileHeight">
+                                        <option value="auto">Auto</option>
+                                        <option value="150">150px</option>
+                                        <option value="200">200px</option>
+                                        <option value="250">250px</option>
+                                        <option value="300">300px</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Tablet Height</label>
+                                    <select class="form-select" id="configBannerTabletHeight">
+                                        <option value="auto">Auto</option>
+                                        <option value="250">250px</option>
+                                        <option value="300">300px</option>
+                                        <option value="400">400px</option>
+                                        <option value="500">500px</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Desktop Height</label>
+                                    <select class="form-select" id="configBannerDesktopHeight">
+                                        <option value="auto">Auto</option>
+                                        <option value="300">300px</option>
+                                        <option value="400">400px</option>
+                                        <option value="500">500px</option>
+                                        <option value="600">600px</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Link URL -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Banner Link (Optional)</label>
+                            <input type="url" class="form-control" id="configBannerLink" placeholder="https://example.com/page">
+                            <div class="form-text">URL to navigate when banner is clicked</div>
+                        </div>
+                        
+                        <!-- Legacy Banner Selection (Optional) -->
+                        <div class="mb-3">
+                            <label class="form-label">Or Select Existing Banner (Optional)</label>
+                            <select class="form-select" id="configBannerId">
+                                <option value="">Use uploaded image above</option>
+                            </select>
+                            <div class="form-text">You can use an existing banner from the Banners section instead</div>
                         </div>
                     </div>
                 </div>
             `;
+            // Initialize image field and load banners
+            setTimeout(() => {
+                initImageField({ 
+                    urlInput: '#configBannerImageUrl', 
+                    fileInput: '#configBannerImageFile', 
+                    preview: '#configBannerImagePreview' 
+                });
+                loadBannersForConfig();
+                loadSectionsForLocation();
+                
+                // Show/hide custom dimensions based on selection
+                $('#configBannerWidth, #configBannerHeight').change(function() {
+                    const widthVal = $('#configBannerWidth').val();
+                    const heightVal = $('#configBannerHeight').val();
+                    if (widthVal === 'custom' || heightVal === 'custom') {
+                        $('#configBannerCustomDimensions').slideDown();
+                    } else {
+                        $('#configBannerCustomDimensions').slideUp();
+                    }
+                });
+            }, 100);
             break;
             
         case 'videoBanner':
@@ -4782,15 +4932,43 @@ async function loadDepartmentsListForConfig() {
 async function loadBannersForConfig() {
     try {
         const banners = await $.get('/api/banners');
-        let html = '<option value="">Select Banner</option>';
+        let html = '<option value="">Use uploaded image above</option>';
         banners.forEach(banner => {
             if (banner.isActive) {
-                html += `<option value="${banner._id}">${banner.title}</option>`;
+                html += `<option value="${banner._id}">${banner.title || 'Untitled Banner'}</option>`;
             }
         });
         $('#configBannerId').html(html);
     } catch (error) {
         console.error('Error loading banners:', error);
+    }
+}
+
+async function loadSectionsForLocation() {
+    try {
+        const sections = await $.get('/api/homepage-sections');
+        const $locationSelect = $('#configBannerLocation');
+        
+        // Clear and add base options
+        $locationSelect.empty();
+        $locationSelect.append('<option value="top">Top (Before all sections)</option>');
+        
+        // Add options for after each section
+        if (Array.isArray(sections) && sections.length > 0) {
+            const sortedSections = sections
+                .filter(s => s.isActive && s.isPublished)
+                .sort((a, b) => (a.ordering || 0) - (b.ordering || 0));
+            
+            sortedSections.forEach((section, index) => {
+                const sectionName = section.name || `Section ${index + 1}`;
+                const sectionType = getSectionTypeLabel(section.type);
+                $locationSelect.append(`<option value="after-${section._id}">After "${sectionName}" (${sectionType})</option>`);
+            });
+        }
+        
+        $locationSelect.append('<option value="bottom">Bottom (After all sections)</option>');
+    } catch (error) {
+        console.error('Error loading sections for location:', error);
     }
 }
 
@@ -4877,6 +5055,40 @@ async function saveHomepageSection() {
     
     try {
         const sectionType = $('#homepageSectionType').val();
+        
+        // Handle image upload for banner sections
+        if (sectionType === 'bannerFullWidth') {
+            const imageFile = $('#configBannerImageFile')[0]?.files?.[0];
+            const imageUrl = $('#configBannerImageUrl').val()?.trim();
+            const bannerId = $('#configBannerId').val();
+            
+            // Validate that at least one image source is provided
+            if (!imageFile && !imageUrl && !bannerId) {
+                showAlert('Please provide a banner image by uploading a file, entering a URL, or selecting an existing banner.', 'warning');
+                return;
+            }
+            
+            // Upload image if file is provided
+            if (imageFile) {
+                try {
+                    const uploadedMedia = await uploadImageIfNeeded('#configBannerImageFile', 'homepage-banners');
+                    if (uploadedMedia) {
+                        // Update the config with uploaded image URL
+                        $('#configBannerImageUrl').val(uploadedMedia.url);
+                        // Store media ID for reference
+                        if (!window.bannerImageMediaId) {
+                            window.bannerImageMediaId = {};
+                        }
+                        window.bannerImageMediaId[id || 'new'] = uploadedMedia._id;
+                    }
+                } catch (uploadError) {
+                    console.error('Error uploading banner image:', uploadError);
+                    showAlert(uploadError.message || 'Error uploading banner image', 'danger');
+                    return;
+                }
+            }
+        }
+        
         const config = buildHomepageSectionConfig(sectionType);
         
         // Validate required fields
@@ -5107,7 +5319,57 @@ function buildHomepageSectionConfig(sectionType) {
             break;
             
         case 'bannerFullWidth':
-            config.bannerId = $('#configBannerId').val() || null;
+            // Image URL or uploaded image
+            const bannerImageUrl = $('#configBannerImageUrl').val()?.trim();
+            if (bannerImageUrl) {
+                config.imageUrl = bannerImageUrl;
+            }
+            // Banner ID (legacy support)
+            const bannerId = $('#configBannerId').val();
+            if (bannerId) {
+                config.bannerId = bannerId;
+            }
+            // Location/Position
+            const location = $('#configBannerLocation').val();
+            if (location) {
+                config.location = location;
+            }
+            // Dimensions
+            const width = $('#configBannerWidth').val();
+            if (width) {
+                config.width = width;
+            }
+            const height = $('#configBannerHeight').val();
+            if (height) {
+                config.height = height;
+            }
+            // Custom dimensions
+            const customWidth = $('#configBannerCustomWidth').val();
+            if (customWidth && width === 'custom') {
+                config.customWidth = parseInt(customWidth, 10);
+            }
+            const customHeight = $('#configBannerCustomHeight').val();
+            if (customHeight && height === 'custom') {
+                config.customHeight = parseInt(customHeight, 10);
+            }
+            // Responsive heights
+            const mobileHeight = $('#configBannerMobileHeight').val();
+            if (mobileHeight && mobileHeight !== 'auto') {
+                config.mobileHeight = parseInt(mobileHeight, 10);
+            }
+            const tabletHeight = $('#configBannerTabletHeight').val();
+            if (tabletHeight && tabletHeight !== 'auto') {
+                config.tabletHeight = parseInt(tabletHeight, 10);
+            }
+            const desktopHeight = $('#configBannerDesktopHeight').val();
+            if (desktopHeight && desktopHeight !== 'auto') {
+                config.desktopHeight = parseInt(desktopHeight, 10);
+            }
+            // Link
+            const bannerLink = $('#configBannerLink').val()?.trim();
+            if (bannerLink) {
+                config.link = bannerLink;
+            }
             break;
             
         case 'videoBanner':
@@ -5301,7 +5563,54 @@ function populateHomepageSectionConfig(sectionType, config) {
             break;
             
         case 'bannerFullWidth':
-            if (config.bannerId) $('#configBannerId').val(config.bannerId);
+            // Image URL
+            if (config.imageUrl) {
+                $('#configBannerImageUrl').val(config.imageUrl);
+                setImagePreview('#configBannerImagePreview', config.imageUrl);
+            }
+            // Legacy banner ID
+            if (config.bannerId) {
+                $('#configBannerId').val(config.bannerId);
+                loadBannersForConfig();
+            }
+            // Location
+            if (config.location) {
+                $('#configBannerLocation').val(config.location);
+            }
+            // Dimensions
+            if (config.width) {
+                $('#configBannerWidth').val(config.width);
+            }
+            if (config.height) {
+                $('#configBannerHeight').val(config.height);
+            }
+            // Custom dimensions
+            if (config.customWidth) {
+                $('#configBannerCustomWidth').val(config.customWidth);
+            }
+            if (config.customHeight) {
+                $('#configBannerCustomHeight').val(config.customHeight);
+            }
+            // Show custom dimensions if needed
+            const widthVal = $('#configBannerWidth').val();
+            const heightVal = $('#configBannerHeight').val();
+            if (widthVal === 'custom' || heightVal === 'custom') {
+                $('#configBannerCustomDimensions').show();
+            }
+            // Responsive heights
+            if (config.mobileHeight) {
+                $('#configBannerMobileHeight').val(config.mobileHeight.toString());
+            }
+            if (config.tabletHeight) {
+                $('#configBannerTabletHeight').val(config.tabletHeight.toString());
+            }
+            if (config.desktopHeight) {
+                $('#configBannerDesktopHeight').val(config.desktopHeight.toString());
+            }
+            // Link
+            if (config.link) {
+                $('#configBannerLink').val(config.link);
+            }
             break;
             
         case 'videoBanner':
