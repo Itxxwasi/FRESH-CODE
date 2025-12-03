@@ -32,6 +32,25 @@ router.get('/public', async (req, res) => {
             isPublished: s.isPublished 
         })));
         
+        // Log brand marquee sections with their config
+        const brandMarqueeSections = sections.filter(s => s.type === 'brandMarquee');
+        if (brandMarqueeSections.length > 0) {
+            console.log('Brand Marquee sections found:', brandMarqueeSections.length);
+            brandMarqueeSections.forEach(section => {
+                console.log(`Brand Marquee Section "${section.name}":`, {
+                    id: section._id,
+                    hasConfig: !!section.config,
+                    hasBrandImages: !!(section.config && section.config.brandImages),
+                    brandImagesCount: section.config && section.config.brandImages ? section.config.brandImages.length : 0,
+                    brandImages: section.config && section.config.brandImages ? section.config.brandImages.map(img => ({
+                        brandName: img.brandName,
+                        url: img.url,
+                        brandId: img.brandId
+                    })) : []
+                });
+            });
+        }
+        
         // For now, keep this response fresh so changes in admin appear immediately
         res.set({
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -130,8 +149,16 @@ router.post('/', adminAuth, async (req, res) => {
         
         console.log('Creating homepage section with payload:', JSON.stringify(payload, null, 2));
         
+        // Log brandImages if present
+        if (payload.config && payload.config.brandImages) {
+            console.log('Brand images in config:', JSON.stringify(payload.config.brandImages, null, 2));
+        }
+        
         const section = new HomepageSection(payload);
         await section.save();
+        
+        console.log('Section saved successfully. ID:', section._id);
+        console.log('Saved config:', JSON.stringify(section.config, null, 2));
         
         res.status(201).json(section);
     } catch (error) {
@@ -205,6 +232,11 @@ router.put('/:id', adminAuth, async (req, res) => {
         
         console.log('Updating homepage section with payload:', JSON.stringify(payload, null, 2));
         
+        // Log brandImages if present
+        if (payload.config && payload.config.brandImages) {
+            console.log('Brand images in config:', JSON.stringify(payload.config.brandImages, null, 2));
+        }
+        
         const section = await HomepageSection.findByIdAndUpdate(
             req.params.id,
             payload,
@@ -214,6 +246,9 @@ router.put('/:id', adminAuth, async (req, res) => {
         if (!section) {
             return res.status(404).json({ message: 'Section not found' });
         }
+        
+        console.log('Section updated successfully. ID:', section._id);
+        console.log('Updated config:', JSON.stringify(section.config, null, 2));
         
         res.json(section);
     } catch (error) {

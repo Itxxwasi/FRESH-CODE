@@ -710,6 +710,93 @@
     }
 }
 
+/* ============ Remove Empty Spaces in Sections - Mobile First ============ */
+@media (max-width: 767px) {
+    /* Remove all top and bottom padding/margins from containers in sections */
+    .homepage-section .container,
+    .homepage-section .container-fluid,
+    section .container,
+    section .container-fluid {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    /* Remove padding from all homepage sections */
+    .homepage-section {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    /* Remove padding from specific section types */
+    .product-carousel,
+    .product-section,
+    .top-selling,
+    .new-arrivals,
+    .category-featured,
+    .category-grid,
+    .category-circles,
+    .department-grid,
+    .brand-marquee-carousel,
+    .brand-grid,
+    .featured-collections,
+    .subcategory-grid,
+    .product-tabs,
+    .newsletter-social,
+    .banner-full-width,
+    .video-banner {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    /* Remove padding from section headers */
+    .section-header {
+        margin-top: 0 !important;
+        margin-bottom: 15px !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    
+    /* Remove Bootstrap utility padding classes on mobile */
+    .py-1, .py-2, .py-3, .py-4, .py-5,
+    .pt-1, .pt-2, .pt-3, .pt-4, .pt-5,
+    .pb-1, .pb-2, .pb-3, .pb-4, .pb-5 {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    
+    /* Remove margins from Bootstrap utility classes */
+    .my-1, .my-2, .my-3, .my-4, .my-5,
+    .mt-1, .mt-2, .mt-3, .mt-4, .mt-5,
+    .mb-1, .mb-2, .mb-3, .mb-4, .mb-5 {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    /* Keep minimal spacing only for content inside containers */
+    .homepage-section .container > *:first-child,
+    .homepage-section .container-fluid > *:first-child {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    .homepage-section .container > *:last-child,
+    .homepage-section .container-fluid > *:last-child {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    
+    /* Add minimal spacing between sections only */
+    .homepage-section + .homepage-section {
+        margin-top: 10px !important;
+    }
+}
+
 /* ============ Touch-Friendly Sizes ============ */
 @media (max-width: 991px) {
     /* Minimum touch target size: 44x44px */

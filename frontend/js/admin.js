@@ -4754,6 +4754,175 @@ function loadHomepageSectionConfig(sectionType) {
             `;
             break;
             
+        case 'brandMarquee':
+            configHtml = `
+                <div class="card border-secondary">
+                    <div class="card-header bg-secondary text-white">
+                        <strong>Brand Marquee Configuration</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Brand Images (For Brand Marquee Section Only)</label>
+                            <div class="alert alert-info">
+                                <strong>Note:</strong> Select brands from dropdown and upload images. These images will only be used in the Brand Marquee section and will not affect the original brand logos in the database.
+                            </div>
+                            
+                            <!-- Add Brand Image Pair -->
+                            <div class="mb-3 p-3 border rounded bg-light">
+                                <h6 class="mb-3">Add Brand Image</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label">Select Brand</label>
+                                        <select class="form-select" id="configBrandMarqueeBrandSelect">
+                                            <option value="">-- Select Brand --</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Upload Image</label>
+                                        <input type="file" class="form-control" id="configBrandMarqueeImageFile" accept="image/*">
+                                        <div class="form-text">Max size: 20MB (JPG, PNG, GIF, WebP)</div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">&nbsp;</label>
+                                        <button type="button" class="btn btn-primary w-100" id="addBrandMarqueeImageBtn">
+                                            <i class="fas fa-plus"></i> Add
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="configBrandMarqueeImagePreview" class="mt-2" style="min-height: 80px;">
+                                    <span class="text-muted">Image preview will appear here</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Brand Images List -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Selected Brand Images</label>
+                                <div id="brandMarqueeImagesList" class="border rounded p-3" style="min-height: 100px;">
+                                    <p class="text-muted mb-0">No brand images added yet. Select brands and upload images above.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Limit (Number of brands to display)</label>
+                            <input type="number" class="form-control" id="configBrandMarqueeLimit" min="1" max="50" value="12">
+                            <div class="form-text">Maximum number of brand images to display (default: 12). If brand images are uploaded, they will be used. Otherwise, brands from database will be used.</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            // Initialize brand marquee configuration
+            setTimeout(() => {
+                // Load brands into dropdown
+                loadBrandsForMarquee();
+                
+                // Initialize brand-image pairs storage
+                // IMPORTANT: Don't reset if already populated (when editing, populateHomepageSectionConfig will populate it)
+                // Only initialize if it doesn't exist or is truly empty
+                if (typeof window.brandMarqueeImages === 'undefined') {
+                    window.brandMarqueeImages = [];
+                    console.log('Initialized empty brandMarqueeImages array');
+                } else {
+                    console.log(`brandMarqueeImages already exists with ${window.brandMarqueeImages.length} items - not resetting`);
+                }
+                
+                // Image preview handler
+                $('#configBrandMarqueeImageFile').on('change', function() {
+                    const file = this.files[0];
+                    const preview = $('#configBrandMarqueeImagePreview');
+                    if (file && file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            preview.html(`<img src="${e.target.result}" class="img-thumbnail" style="max-height: 80px; max-width: 150px;">`);
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        preview.html('<span class="text-muted">Please select an image file</span>');
+                    }
+                });
+                
+                // Add brand image button
+                $('#addBrandMarqueeImageBtn').on('click', function() {
+                    const brandId = $('#configBrandMarqueeBrandSelect').val();
+                    const brandName = $('#configBrandMarqueeBrandSelect option:selected').text();
+                    const imageFile = $('#configBrandMarqueeImageFile')[0].files[0];
+                    
+                    if (!brandId || brandId === '') {
+                        showAlert('Please select a brand', 'warning');
+                        return;
+                    }
+                    
+                    if (!imageFile) {
+                        showAlert('Please select an image file', 'warning');
+                        return;
+                    }
+                    
+                    // Check if brand already added
+                    if (window.brandMarqueeImages.find(item => item.brandId === brandId)) {
+                        showAlert('This brand already has an image. Remove it first to replace.', 'warning');
+                        return;
+                    }
+                    
+                    // Read image and add to list
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const brandImage = {
+                            brandId: brandId,
+                            brandName: brandName,
+                            imageFile: imageFile,
+                            preview: e.target.result,
+                            tempId: 'temp_' + Date.now()
+                        };
+                        
+                        window.brandMarqueeImages.push(brandImage);
+                        updateBrandMarqueeImagesList();
+                        
+                        // Reset form
+                        $('#configBrandMarqueeBrandSelect').val('');
+                        $('#configBrandMarqueeImageFile').val('');
+                        $('#configBrandMarqueeImagePreview').html('<span class="text-muted">Image preview will appear here</span>');
+                    };
+                    reader.readAsDataURL(imageFile);
+                });
+                
+                // Remove brand image handler
+                $(document).on('click', '.remove-brand-marquee-image', function() {
+                    const tempId = $(this).data('temp-id');
+                    window.brandMarqueeImages = window.brandMarqueeImages.filter(item => item.tempId !== tempId);
+                    updateBrandMarqueeImagesList();
+                });
+                
+                // Function to update the images list display
+                function updateBrandMarqueeImagesList() {
+                    const listContainer = $('#brandMarqueeImagesList');
+                    if (window.brandMarqueeImages.length === 0) {
+                        listContainer.html('<p class="text-muted mb-0">No brand images added yet. Select brands and upload images above.</p>');
+                        return;
+                    }
+                    
+                    let html = '<div class="row g-2">';
+                    window.brandMarqueeImages.forEach((item, index) => {
+                        const isSaved = item.isSaved || false;
+                        const badge = isSaved ? '<span class="badge bg-success position-absolute top-0 start-0 m-1">Saved</span>' : '';
+                        html += `
+                            <div class="col-md-3 col-sm-4 col-6">
+                                <div class="border rounded p-2 position-relative">
+                                    ${badge}
+                                    <img src="${item.preview}" class="img-fluid rounded mb-1" style="max-height: 80px; width: 100%; object-fit: contain; background: #f8f9fa;">
+                                    <small class="d-block text-center fw-bold">${item.brandName}</small>
+                                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-brand-marquee-image" data-temp-id="${item.tempId}" style="padding: 2px 6px; font-size: 10px;">×</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    listContainer.html(html);
+                }
+                
+                // Make update function available globally
+                window.updateBrandMarqueeImagesList = updateBrandMarqueeImagesList;
+            }, 100);
+            break;
+            
         case 'customHTML':
             configHtml = `
                 <div class="card border-dark">
@@ -4789,6 +4958,33 @@ function loadHomepageSectionConfig(sectionType) {
     }
     if (sectionType === 'bannerFullWidth') {
         loadBannersForConfig();
+    }
+    if (sectionType === 'brandMarquee') {
+        loadBrandsForMarquee();
+    }
+}
+
+// Load brands for Brand Marquee dropdown
+async function loadBrandsForMarquee() {
+    try {
+        const brands = await $.get('/api/admin/brands', {
+            headers: {
+                'x-auth-token': localStorage.getItem('token') || ''
+            }
+        });
+        
+        const brandsArray = Array.isArray(brands) ? brands : (brands.brands || brands.data || []);
+        const select = $('#configBrandMarqueeBrandSelect');
+        select.html('<option value="">-- Select Brand --</option>');
+        
+        brandsArray.forEach(brand => {
+            if (brand.isActive !== false) {
+                select.append(`<option value="${brand._id}">${brand.name}</option>`);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading brands for marquee:', error);
+        $('#configBrandMarqueeBrandSelect').html('<option value="">Error loading brands</option>');
     }
 }
 
@@ -5091,6 +5287,103 @@ async function saveHomepageSection() {
         
         const config = buildHomepageSectionConfig(sectionType);
         
+        // Handle brand image uploads for brand marquee (after config is built)
+        if (sectionType === 'brandMarquee') {
+            try {
+                const uploadedImages = [];
+                
+                // First, if editing, load existing images as fallback
+                let existingImages = [];
+                if (id) {
+                    try {
+                        const existingSection = await $.get(`/api/homepage-sections/${id}`);
+                        if (existingSection.config?.brandImages && Array.isArray(existingSection.config.brandImages)) {
+                            existingImages = existingSection.config.brandImages;
+                            console.log(`Loaded ${existingImages.length} existing images from database as fallback`);
+                        }
+                    } catch (e) {
+                        console.warn('Could not load existing section:', e);
+                    }
+                }
+                
+                // Process window.brandMarqueeImages if it exists and has items
+                if (window.brandMarqueeImages && window.brandMarqueeImages.length > 0) {
+                    console.log(`Processing ${window.brandMarqueeImages.length} brand images from form...`);
+                    
+                    // Process each brand image
+                    for (let i = 0; i < window.brandMarqueeImages.length; i++) {
+                        const item = window.brandMarqueeImages[i];
+                        
+                        // If image is already saved (editing), use existing data
+                        if (item.isSaved && item.url && item._id) {
+                            console.log(`✅ Preserving existing saved image ${i + 1}: ${item.brandName}`);
+                            uploadedImages.push({
+                                brandId: item.brandId,
+                                brandName: item.brandName,
+                                url: item.url, // Cloudinary URL
+                                _id: item._id, // Media ID from database
+                                alt: item.brandName || item.alt || 'Brand',
+                                link: item.link || `/brand/${item.brandId}`
+                            });
+                        } else if (item.imageFile) {
+                            // New image - upload it to Cloudinary
+                            console.log(`📤 Uploading NEW image ${i + 1}/${window.brandMarqueeImages.length} for brand: ${item.brandName}`);
+                            const formData = new FormData();
+                            formData.append('file', item.imageFile);
+                            formData.append('folder', 'brand-marquee');
+                            
+                            const response = await $.ajax({
+                                url: '/api/admin/media',
+                                method: 'POST',
+                                data: formData,
+                                processData: false,
+                                contentType: false,
+                                headers: {
+                                    'x-auth-token': localStorage.getItem('token')
+                                }
+                            });
+                            
+                            console.log('Media upload response:', response);
+                            
+                            // Ensure we have a valid URL from Cloudinary
+                            if (!response.url) {
+                                throw new Error(`Failed to get image URL from upload response. Response: ${JSON.stringify(response)}`);
+                            }
+                            
+                            console.log(`✅ Image uploaded successfully. Cloudinary URL: ${response.url}`);
+                            
+                            uploadedImages.push({
+                                brandId: item.brandId,
+                                brandName: item.brandName,
+                                url: response.url, // Cloudinary URL
+                                _id: response._id, // Media ID from database
+                                alt: item.brandName,
+                                link: `/brand/${item.brandId}` // Auto-generate link from brand ID
+                            });
+                        } else {
+                            console.warn(`⚠️ Skipping item ${i + 1} - no imageFile and not saved:`, item);
+                        }
+                    }
+                    
+                    // Store processed images in config
+                    config.brandImages = uploadedImages;
+                    console.log(`✅ Brand images stored in config: ${uploadedImages.length} images`);
+                } else if (id && existingImages.length > 0) {
+                    // Editing but window.brandMarqueeImages is empty - preserve existing images
+                    console.log(`⚠️ No images in form, preserving ${existingImages.length} existing images from database`);
+                    config.brandImages = existingImages;
+                } else {
+                    // No images at all - set to empty array
+                    config.brandImages = [];
+                    console.log('No brand images - setting to empty array');
+                }
+            } catch (uploadError) {
+                console.error('❌ Error processing brand marquee images:', uploadError);
+                showAlert(uploadError.message || 'Error processing brand images', 'danger');
+                return;
+            }
+        }
+        
         // Validate required fields
         const sectionName = $('#homepageSectionName').val()?.trim();
         if (!sectionName) {
@@ -5120,6 +5413,21 @@ async function saveHomepageSection() {
             }
         };
         
+        // Log payload for brand marquee debugging
+        if (sectionType === 'brandMarquee') {
+            console.log('Brand Marquee Payload being sent:', JSON.stringify(payload, null, 2));
+            console.log('Brand Images in config:', config.brandImages);
+        }
+        
+        // Ensure config is included in payload (especially for brandMarquee)
+        if (sectionType === 'brandMarquee') {
+            payload.config = config;
+            console.log('✅ Config added to payload:', {
+                hasBrandImages: !!(config.brandImages),
+                brandImagesCount: config.brandImages ? config.brandImages.length : 0
+            });
+        }
+        
         // Remove undefined values to avoid sending them
         Object.keys(payload).forEach(key => {
             if (payload[key] === undefined) {
@@ -5127,18 +5435,72 @@ async function saveHomepageSection() {
             }
         });
         
-        console.log('Saving homepage section with payload:', payload);
+        // Validate brandImages structure before sending
+        if (sectionType === 'brandMarquee' && payload.config && payload.config.brandImages) {
+            console.log('Validating brandImages before send:', payload.config.brandImages.length);
+            payload.config.brandImages = payload.config.brandImages.map((img, idx) => {
+                if (!img.url) {
+                    console.error(`❌ Brand image ${idx} missing URL:`, img);
+                    return null;
+                }
+                return {
+                    brandId: img.brandId || '',
+                    brandName: img.brandName || 'Brand',
+                    url: img.url, // Must be Cloudinary URL
+                    _id: img._id || '',
+                    alt: img.alt || img.brandName || 'Brand',
+                    link: img.link || (img.brandId ? `/brand/${img.brandId}` : '#')
+                };
+            }).filter(img => img !== null);
+            console.log('✅ Validated brandImages:', payload.config.brandImages.length);
+        }
         
-        await $.ajax({
+        console.log('Saving homepage section with payload:', JSON.stringify(payload, null, 2));
+        
+        const savedSection = await $.ajax({
             url,
             method,
             contentType: 'application/json',
             data: JSON.stringify(payload)
         });
         
+        // Log saved section for debugging
+        if (sectionType === 'brandMarquee') {
+            console.log('✅ Section saved successfully!');
+            console.log('Saved section response:', savedSection);
+            console.log('Brand images in saved section:', savedSection.config?.brandImages);
+            
+            if (savedSection.config?.brandImages && savedSection.config.brandImages.length > 0) {
+                console.log('✅ Brand images confirmed in saved section:', savedSection.config.brandImages.length);
+                savedSection.config.brandImages.forEach((img, idx) => {
+                    console.log(`  Image ${idx + 1}:`, {
+                        brandName: img.brandName,
+                        url: img.url,
+                        brandId: img.brandId
+                    });
+                });
+            } else {
+                console.error('❌ No brand images found in saved section config!');
+            }
+        }
+        
         $('#homepageSectionModal').modal('hide');
         showAlert(id ? 'Homepage section updated successfully' : 'Homepage section added successfully', 'success');
+        
+        // Clear brand marquee images array after successful save
+        if (sectionType === 'brandMarquee') {
+            window.brandMarqueeImages = [];
+        }
+        
         loadHomepageSections();
+        
+        // Force reload homepage if on homepage
+        if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+            console.log('Reloading homepage to show updated brand marquee...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
     } catch (error) {
         console.error('Error saving homepage section', error);
         console.error('Error details:', {
@@ -5414,11 +5776,124 @@ function buildHomepageSectionConfig(sectionType) {
             break;
             
         case 'brandGrid':
-            config.limit = parseInt($('#configBrandGridLimit').val(), 10) || 10;
+            if (config.limit) $('#configBrandGridLimit').val(config.limit);
+            break;
+            
+        case 'brandMarquee':
+            console.log('📋 Populating Brand Marquee config...');
+            console.log('Config received:', config);
+            console.log('brandImages in config:', config.brandImages);
+            console.log('Current window.brandMarqueeImages before populate:', window.brandMarqueeImages);
+            
+            // Always initialize array (will be populated below)
+            window.brandMarqueeImages = [];
+            
+            // Load existing brand images (for editing)
+            if (config.brandImages && Array.isArray(config.brandImages) && config.brandImages.length > 0) {
+                console.log(`📥 Loading ${config.brandImages.length} existing brand images for editing...`);
+                
+                // Clear existing array first to avoid duplicates
+                window.brandMarqueeImages = [];
+                
+                config.brandImages.forEach((img, index) => {
+                    // Ensure we have a valid URL
+                    const imageUrl = img.url || img.image || '';
+                    if (!imageUrl || imageUrl === 'null' || imageUrl === 'undefined') {
+                        console.warn(`⚠️ Skipping image ${index} - invalid URL:`, img);
+                        return;
+                    }
+                    
+                    // Store existing images (they're already uploaded)
+                    const brandImage = {
+                        brandId: img.brandId || '',
+                        brandName: img.brandName || img.name || img.alt || 'Brand',
+                        imageFile: null, // Already uploaded, no file needed
+                        preview: imageUrl,
+                        tempId: 'saved_' + (img.brandId || img._id || index || Date.now()),
+                        isSaved: true,
+                        url: imageUrl,
+                        _id: img._id || '',
+                        alt: img.alt || img.brandName || 'Brand',
+                        link: img.link || (img.brandId ? `/brand/${img.brandId}` : '#')
+                    };
+                    
+                    window.brandMarqueeImages.push(brandImage);
+                    console.log(`  ✅ Loaded: ${brandImage.brandName} - ${brandImage.url}`);
+                });
+                
+                console.log(`✅ Successfully loaded ${window.brandMarqueeImages.length} brand images into form`);
+                console.log('window.brandMarqueeImages:', window.brandMarqueeImages);
+                
+                // Update display - try multiple times to ensure DOM is ready
+                const updateDisplay = () => {
+                    const listContainer = $('#brandMarqueeImagesList');
+                    if (listContainer.length === 0) {
+                        console.warn('⚠️ brandMarqueeImagesList container not found yet, retrying...');
+                        return false;
+                    }
+                    
+                    if (window.updateBrandMarqueeImagesList) {
+                        console.log('Calling updateBrandMarqueeImagesList...');
+                        window.updateBrandMarqueeImagesList();
+                        console.log('✅ Display updated');
+                        return true;
+                    } else {
+                        // Fallback: manually update the display
+                        console.log('updateBrandMarqueeImagesList not found, manually updating display...');
+                        if (window.brandMarqueeImages.length === 0) {
+                            listContainer.html('<p class="text-muted mb-0">No brand images added yet. Select brands and upload images above.</p>');
+                            return true;
+                        }
+                        
+                        let html = '<div class="row g-2">';
+                        window.brandMarqueeImages.forEach((item) => {
+                            const isSaved = item.isSaved || false;
+                            const badge = isSaved ? '<span class="badge bg-success position-absolute top-0 start-0 m-1">Saved</span>' : '';
+                            html += `
+                                <div class="col-md-3 col-sm-4 col-6">
+                                    <div class="border rounded p-2 position-relative">
+                                        ${badge}
+                                        <img src="${item.preview}" class="img-fluid rounded mb-1" style="max-height: 80px; width: 100%; object-fit: contain; background: #f8f9fa;">
+                                        <small class="d-block text-center fw-bold">${item.brandName}</small>
+                                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-brand-marquee-image" data-temp-id="${item.tempId}" style="padding: 2px 6px; font-size: 10px;">×</button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        listContainer.html(html);
+                        console.log('✅ Manually updated display');
+                        return true;
+                    }
+                };
+                
+                // Try to update immediately
+                if (!updateDisplay()) {
+                    // Retry after delays
+                    setTimeout(() => {
+                        if (!updateDisplay()) {
+                            setTimeout(() => updateDisplay(), 300);
+                        }
+                    }, 200);
+                }
+            } else {
+                console.log('No existing brand images found in config');
+                // Ensure empty state is shown
+                setTimeout(() => {
+                    const listContainer = $('#brandMarqueeImagesList');
+                    if (listContainer.length > 0 && window.brandMarqueeImages.length === 0) {
+                        listContainer.html('<p class="text-muted mb-0">No brand images added yet. Select brands and upload images above.</p>');
+                    }
+                }, 300);
+            }
+            
+            // Load limit
+            if (config.limit) {
+                $('#configBrandMarqueeLimit').val(config.limit);
+            }
             break;
             
         case 'collectionLinks':
-        case 'brandMarquee':
         case 'categoryCircles':
             // These section types may not have specific config fields yet
             // Return empty config object - they can be configured later
@@ -5435,7 +5910,16 @@ function buildHomepageSectionConfig(sectionType) {
 
 async function editHomepageSection(id) {
     try {
+        console.log(`📝 Loading section ${id} for editing...`);
         const section = await $.get(`/api/homepage-sections/${id}`);
+        
+        console.log('Section loaded:', {
+            id: section._id,
+            name: section.name,
+            type: section.type,
+            hasConfig: !!section.config,
+            brandImagesCount: section.config?.brandImages?.length || 0
+        });
         
         $('#homepageSectionId').val(section._id);
         $('#homepageSectionName').val(section.name || '');
@@ -5456,15 +5940,23 @@ async function editHomepageSection(id) {
         // Load config for this section type
         loadHomepageSectionConfig(section.type);
         
-        // Populate config fields
+        // Populate config fields (with longer delay for brandMarquee to ensure DOM is ready)
         if (section.config) {
-            setTimeout(() => populateHomepageSectionConfig(section.type, section.config), 500);
+            const delay = section.type === 'brandMarquee' ? 1000 : 500;
+            console.log(`⏳ Will populate config for ${section.type} after ${delay}ms delay...`);
+            setTimeout(() => {
+                console.log(`✅ Now populating config for ${section.type}...`);
+                console.log('Config to populate:', section.config);
+                populateHomepageSectionConfig(section.type, section.config);
+            }, delay);
+        } else {
+            console.warn('⚠️ No config found in section');
         }
         
         $('#homepageSectionModalTitle').text('Edit Homepage Section');
         $('#homepageSectionModal').modal('show');
     } catch (error) {
-        console.error('Error loading homepage section', error);
+        console.error('❌ Error loading homepage section', error);
         showAlert('Error loading homepage section', 'danger');
     }
 }

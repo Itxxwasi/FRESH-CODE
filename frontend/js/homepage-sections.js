@@ -2956,98 +2956,176 @@ function renderNewsletterSocial(section, index) {
 }
 
 // Render Brand Marquee
+// Render Brand Marquee with Sliding Carousel (Top Brands - Like Reference)
 async function renderBrandMarquee(section, index) {
     try {
         console.log('Rendering brand marquee section:', section.name || section._id);
+        console.log('Section config:', JSON.stringify(section.config, null, 2));
         
-        // Fetch active brands from API
+        // Check if uploaded images are available in config (priority - ALWAYS use these if they exist)
         let brands = [];
-        try {
-            const response = await fetch('/api/brands/public');
-            if (response.ok) {
-                const apiBrands = await response.json();
-                // Ensure it's an array
-                brands = Array.isArray(apiBrands) ? apiBrands : (apiBrands.brands || apiBrands.data || []);
-                console.log(`Fetched ${brands.length} brands from API for brand marquee`);
+        
+        // First priority: Check for uploaded brandImages in config
+        if (section.config && section.config.brandImages && Array.isArray(section.config.brandImages) && section.config.brandImages.length > 0) {
+            console.log('✅ Found uploaded brand images in config:', section.config.brandImages.length);
+            console.log('Brand images data:', section.config.brandImages);
+            
+            // Use uploaded images from config (with brand info)
+            brands = section.config.brandImages.map((img, idx) => {
+                // Ensure URL is valid - check multiple possible fields
+                const imageUrl = img.url || img.image || '';
+                
+                console.log(`Processing brand image ${idx + 1}:`, {
+                    brandName: img.brandName || img.name,
+                    url: imageUrl,
+                    brandId: img.brandId,
+                    hasUrl: !!imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined'
+                });
+                
+                if (!imageUrl || imageUrl === 'null' || imageUrl === 'undefined' || imageUrl.trim() === '') {
+                    console.error(`❌ Invalid image URL in brandImages[${idx}]:`, img);
+                    return null;
+                }
+                
+                const brandData = {
+                    image: imageUrl,
+                    logo: imageUrl,
+                    name: img.brandName || img.name || img.alt || 'Brand',
+                    alt: img.brandName || img.name || img.alt || 'Brand',
+                    link: img.link || (img.brandId ? `/brand/${img.brandId}` : '#'),
+                    _id: img.brandId || img._id || 'uploaded-' + Date.now()
+                };
+                
+                console.log(`✅ Brand ${idx + 1} processed:`, brandData);
+                return brandData;
+            }).filter(brand => brand !== null); // Remove any null entries
+            
+            console.log(`✅ Using ${brands.length} uploaded brand images from config`);
+            console.log('Final brands array:', brands.map(b => ({ name: b.name, image: b.image })));
+        } else {
+            console.log('No uploaded brandImages found in config, checking for legacy logos...');
+            
+            // Second priority: Check for legacy logos in config
+            if (section.config && section.config.logos && Array.isArray(section.config.logos) && section.config.logos.length > 0) {
+                console.log('Found legacy logos in config:', section.config.logos.length);
+                brands = section.config.logos.map((logo) => {
+                    const imageUrl = logo.image || logo.url || '';
+                    if (!imageUrl || imageUrl === 'null' || imageUrl === 'undefined') {
+                        return null;
+                    }
+                    return {
+                        image: imageUrl,
+                        logo: imageUrl,
+                        name: logo.name || logo.alt || 'Brand',
+                        alt: logo.alt || logo.name || 'Brand',
+                        link: logo.link || '#',
+                        _id: logo._id || 'legacy-' + Date.now()
+                    };
+                }).filter(brand => brand !== null);
+                console.log(`Using ${brands.length} legacy logos from config`);
             } else {
-                console.warn('Failed to fetch brands from API:', response.status, response.statusText);
+                console.log('No logos in config, fetching from API as fallback...');
+                
+                // Last resort: Fetch active brands from API (only if no config images)
+                try {
+                    const response = await fetch('/api/brands/public');
+                    if (response.ok) {
+                        const apiBrands = await response.json();
+                        brands = Array.isArray(apiBrands) ? apiBrands : (apiBrands.brands || apiBrands.data || []);
+                        console.log(`Fetched ${brands.length} brands from API for brand marquee (fallback)`);
+                    } else {
+                        console.warn('Failed to fetch brands from API:', response.status, response.statusText);
+                    }
+                } catch (fetchError) {
+                    console.error('Error fetching brands from API:', fetchError);
+                }
             }
-        } catch (fetchError) {
-            console.error('Error fetching brands from API:', fetchError);
         }
         
-        // If no brands from API, check config
-        if (brands.length === 0) {
-    const logos = section.config?.logos || [];
-            if (Array.isArray(logos) && logos.length > 0) {
-                brands = logos;
-                console.log(`Using ${brands.length} brands from section config`);
-            }
-        }
-        
-        // Filter out brands without images
+        // Filter out brands without valid images
         brands = brands.filter(brand => {
-            const hasImage = brand.image || brand.logo;
+            const imageUrl = brand.image || brand.logo || '';
+            const hasImage = imageUrl && 
+                           imageUrl !== 'null' && 
+                           imageUrl !== 'undefined' && 
+                           imageUrl.trim() !== '';
             if (!hasImage) {
-                console.warn('Skipping brand without image:', brand.name || brand);
+                console.warn('Skipping brand without valid image URL:', brand.name || brand, 'Image URL:', imageUrl);
             }
             return hasImage;
         });
         
-        // If still no brands, return null (don't render empty section)
+        // If still no brands, return null
         if (!brands || brands.length === 0) {
-            console.log('No brands with images found to display in brand marquee');
+            console.error('No brands with valid images found to display in brand marquee');
+            console.error('Section config:', section.config);
+            console.error('Section ID:', section._id);
             if (typeof window.Logger !== 'undefined') {
                 window.Logger.warn('Brand marquee section not rendered: No brands with images available', {
                     sectionType: 'brandMarquee',
-                    sectionId: section._id
+                    sectionId: section._id,
+                    config: section.config
                 });
             }
             return null;
         }
         
-        console.log(`Rendering ${brands.length} brands in brand marquee`);
+        console.log(`Final brands array for rendering:`, brands.map(b => ({ name: b.name, image: b.image })));
+        
+        // Limit to config limit or default 12
+        const limit = section.config?.limit || 12;
+        brands = brands.slice(0, limit);
+        
+        console.log(`Rendering ${brands.length} brands in sliding brand marquee carousel`);
+        console.log('Brands data:', brands.map(b => ({ name: b.name, image: b.image, link: b.link })));
     
     const sectionHtml = `
-        <section class="brand-marquee homepage-section" data-section-type="brandMarquee" data-section-id="${section._id}">
-            <div class="container py-5">
+        <section class="brand-marquee-carousel homepage-section" data-section-type="brandMarquee" data-section-id="${section._id}">
+            <div class="container py-4 py-md-5">
                 ${section.title ? `
-                    <div class="section-header text-center mb-4">
-                        <h2>${htmlEscape(section.title)}</h2>
-                        ${section.subtitle ? `<p class="text-muted">${htmlEscape(section.subtitle)}</p>` : ''}
+                    <div class="section-header text-center mb-3 mb-md-4">
+                        <h2 class="section-title">${htmlEscape(section.title)}</h2>
+                        ${section.subtitle ? `<p class="text-muted mt-2">${htmlEscape(section.subtitle)}</p>` : ''}
                     </div>
                 ` : ''}
-                <div class="brand-marquee__inner">
-                    ${brands.map(brand => {
+                <div class="brand-marquee-carousel__wrapper">
+                    <div class="brand-marquee-carousel__track" id="brandMarqueeCarousel_${index}">
+                    ${brands.map((brand, idx) => {
                         const logoUrl = brand.image || brand.logo || '';
                         const brandName = brand.name || brand.alt || 'Brand';
                         const brandAlt = brand.alt || brandName;
-                            const brandLink = brand.link || '';
-                            
-                            if (!logoUrl || logoUrl === 'null' || logoUrl === 'undefined') {
-                                console.warn('Skipping brand without valid image URL:', brandName);
-                                return ''; // Skip brands without images
-                            }
-                            
-                            // Wrap in link if provided
-                            // Properly escape JavaScript strings for inline handlers using JSON.stringify
-                            // JSON.stringify already includes quotes, so we use it directly
-                            const escapedLogoUrl = JSON.stringify(String(logoUrl || ''));
-                            const escapedBrandName = JSON.stringify(String(brandName || ''));
-                            
-                            // Use data attributes and event listeners instead of inline handlers to avoid syntax errors
-                            const logoHtml = `
-                            <div class="brand-marquee__item">
-                                    ${brandLink ? `<a href="${htmlEscape(brandLink)}" target="_blank" rel="noopener">` : '<div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">'}
-                                    <img src="${htmlEscape(logoUrl)}" alt="${htmlEscape(brandAlt)}" loading="lazy" 
-                                         data-brand-name="${htmlEscape(brandName)}"
-                                         data-brand-url="${htmlEscape(logoUrl)}"
-                                         class="brand-logo-image">
-                                    ${brandLink ? `</a>` : '</div>'}
+                        const brandId = brand._id || brand.id || '';
+                        const brandLink = brand.link || (brandId && brandId !== 'uploaded' ? `/brand/${brandId}` : '#');
+                        
+                        if (!logoUrl || logoUrl === 'null' || logoUrl === 'undefined' || logoUrl.trim() === '') {
+                            console.warn(`Skipping brand ${idx}: Invalid URL -`, logoUrl);
+                            return '';
+                        }
+                        
+                        console.log(`Rendering brand ${idx}:`, { name: brandName, url: logoUrl, link: brandLink });
+                        
+                        return `
+                            <div class="brand-marquee-carousel__slide">
+                                <div class="brand-marquee-carousel__item">
+                                    <a href="${htmlEscape(brandLink)}" class="brand-marquee-carousel__link">
+                                        <img src="${htmlEscape(logoUrl)}" 
+                                             alt="${htmlEscape(brandAlt)}" 
+                                             class="brand-marquee-carousel__logo" 
+                                             loading="lazy"
+                                             data-brand-name="${htmlEscape(brandName)}"
+                                             data-brand-url="${htmlEscape(logoUrl)}">
+                                    </a>
+                                </div>
                             </div>
                         `;
-                            return logoHtml;
                         }).filter(html => html !== '').join('')}
+                    </div>
+                    <button class="brand-marquee-carousel__nav brand-marquee-carousel__nav--prev" aria-label="Previous brands">
+                        <span>&lsaquo;</span>
+                    </button>
+                    <button class="brand-marquee-carousel__nav brand-marquee-carousel__nav--next" aria-label="Next brands">
+                        <span>&rsaquo;</span>
+                    </button>
                 </div>
             </div>
         </section>
@@ -3057,30 +3135,23 @@ async function renderBrandMarquee(section, index) {
     tempDiv.innerHTML = sectionHtml;
     const sectionElement = tempDiv.firstElementChild;
     
-    // Add event listeners to brand images after DOM insertion to avoid inline handler syntax errors
+        // Initialize carousel after DOM insertion
     if (sectionElement) {
-        const brandImages = sectionElement.querySelectorAll('.brand-logo-image');
+            setTimeout(() => {
+                initBrandMarqueeCarousel(sectionElement, index);
+            }, 100);
+            
+            // Add image error handlers
+            const brandImages = sectionElement.querySelectorAll('.brand-marquee-carousel__logo');
         brandImages.forEach(img => {
             const brandName = img.getAttribute('data-brand-name') || 'Brand';
             const brandUrl = img.getAttribute('data-brand-url') || '';
             
             img.addEventListener('error', function() {
-                try {
-                    console.error('❌ Failed to load brand image:', String(brandUrl), 'for brand:', String(brandName));
-                } catch (err) {
-                    console.error('❌ Failed to load brand image');
-                }
-                const parent = this.closest('.brand-marquee__item');
+                    console.error('Failed to load brand image:', brandUrl, 'for brand:', brandName);
+                    const parent = this.closest('.brand-marquee-carousel__slide');
                 if (parent && parent.parentNode) {
-                    parent.parentNode.removeChild(parent);
-                }
-            });
-            
-            img.addEventListener('load', function() {
-                try {
-                    console.log('✅ Loaded brand image:', String(brandName), 'from:', String(brandUrl));
-                } catch (err) {
-                    console.log('✅ Loaded brand image successfully');
+                        parent.style.display = 'none';
                 }
             });
         });
@@ -3090,6 +3161,201 @@ async function renderBrandMarquee(section, index) {
     } catch (error) {
         console.error('Error rendering brand marquee:', error);
         return null;
+    }
+}
+
+// Initialize Brand Marquee Carousel - Matches Product Carousel behavior
+function initBrandMarqueeCarousel(container, index) {
+    const wrapper = container.querySelector('.brand-marquee-carousel__wrapper');
+    const track = container.querySelector('.brand-marquee-carousel__track');
+    const slides = container.querySelectorAll('.brand-marquee-carousel__slide');
+    const prevBtn = container.querySelector('.brand-marquee-carousel__nav--prev');
+    const nextBtn = container.querySelector('.brand-marquee-carousel__nav--next');
+    
+    if (!track || slides.length === 0) return;
+    
+    // Match product carousel: Mobile < 992px, Desktop >= 992px
+    const isMobile = window.innerWidth < 992;
+    let currentIndex = 0;
+    // Desktop: Show 3 slides (matching user requirement), Mobile: Show 2 slides
+    const visibleSlides = isMobile ? 2 : 3;
+    let autoSlideInterval = null;
+    
+    // Mobile: Use native horizontal scrolling (same as product carousel)
+    if (isMobile && wrapper) {
+        // Prevent vertical scrolling when touching carousel
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isHorizontalScroll = false;
+        let initialScrollLeft = 0;
+        let initialScrollTop = 0;
+        
+        wrapper.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            initialScrollLeft = wrapper.scrollLeft;
+            initialScrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+            isHorizontalScroll = false;
+            stopAutoSlide();
+        }, { passive: true });
+        
+        wrapper.addEventListener('touchmove', (e) => {
+            if (!touchStartX || !touchStartY) return;
+            
+            const touchCurrentX = e.touches[0].clientX;
+            const touchCurrentY = e.touches[0].clientY;
+            
+            const diffX = Math.abs(touchCurrentX - touchStartX);
+            const diffY = Math.abs(touchCurrentY - touchStartY);
+            
+            if (!isHorizontalScroll && (diffX > 10 || diffY > 10)) {
+                isHorizontalScroll = diffX > diffY;
+                
+                if (isHorizontalScroll) {
+                    const currentBodyScroll = document.documentElement.scrollTop || document.body.scrollTop;
+                    document.body.style.position = 'fixed';
+                    document.body.style.top = `-${currentBodyScroll}px`;
+                    document.body.style.width = '100%';
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+            
+            if (isHorizontalScroll && diffX > 5) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, { passive: false });
+        
+        const restoreBodyScroll = () => {
+            if (isHorizontalScroll) {
+                const scrollTop = parseInt(document.body.style.top || '0') * -1;
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.width = '';
+                document.body.style.overflow = '';
+                if (scrollTop) {
+                    document.documentElement.scrollTop = scrollTop;
+                    document.body.scrollTop = scrollTop;
+                }
+            }
+            touchStartX = 0;
+            touchStartY = 0;
+            isHorizontalScroll = false;
+        };
+        
+        wrapper.addEventListener('touchend', restoreBodyScroll, { passive: true });
+        wrapper.addEventListener('touchcancel', restoreBodyScroll, { passive: true });
+        
+        wrapper.addEventListener('wheel', (e) => {
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                e.preventDefault();
+                wrapper.scrollLeft += e.deltaX;
+            }
+        }, { passive: false });
+        
+        // Mobile uses native scrolling, no transform needed
+        return;
+    }
+    
+    // Desktop: Use transform-based scrolling (same as product carousel)
+    function updateCarousel() {
+        if (!isMobile) {
+            const offset = -currentIndex * (100 / visibleSlides);
+            track.style.transform = `translateX(${offset}%)`;
+        }
+    }
+    
+    function nextSlide() {
+        // Always advance, loop continuously
+        if (currentIndex >= slides.length - visibleSlides) {
+            currentIndex = 0; // Loop back to start
+        } else {
+            currentIndex++;
+        }
+        updateCarousel();
+    }
+    
+    function prevSlide() {
+        // Always go back, loop continuously
+        if (currentIndex <= 0) {
+            currentIndex = Math.max(0, slides.length - visibleSlides); // Loop to end
+        } else {
+            currentIndex--;
+        }
+        updateCarousel();
+    }
+    
+    // Auto-slide every 3 seconds - runs continuously
+    function startAutoSlide() {
+        stopAutoSlide();
+        if (slides.length > visibleSlides) {
+            autoSlideInterval = setInterval(() => {
+                nextSlide();
+            }, 3000);
+        }
+    }
+    
+    function stopAutoSlide() {
+        if (autoSlideInterval) {
+            clearInterval(autoSlideInterval);
+            autoSlideInterval = null;
+        }
+    }
+    
+    // Pause auto-slide on hover
+    if (wrapper) {
+        wrapper.addEventListener('mouseenter', stopAutoSlide);
+        wrapper.addEventListener('mouseleave', startAutoSlide);
+    }
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            stopAutoSlide();
+            prevSlide();
+            startAutoSlide();
+        });
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            stopAutoSlide();
+            nextSlide();
+            startAutoSlide();
+        });
+    }
+    
+    // Handle window resize
+    let resizeTimer;
+    const handleResize = () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            const wasAutoSliding = autoSlideInterval !== null;
+            stopAutoSlide();
+            
+            const newIsMobile = window.innerWidth < 992;
+            const newVisibleSlides = newIsMobile ? 2 : 3;
+            
+            // Recalculate if needed
+            if (currentIndex > slides.length - newVisibleSlides) {
+                currentIndex = Math.max(0, slides.length - newVisibleSlides);
+            }
+            
+            updateCarousel();
+            
+            if (wasAutoSliding && !newIsMobile) {
+                startAutoSlide();
+            }
+        }, 250);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Initialize
+    updateCarousel();
+    
+    // Start auto-slide immediately (desktop only)
+    if (!isMobile) {
+        startAutoSlide();
     }
 }
 
@@ -3170,7 +3436,7 @@ async function renderBrandGrid(section, index) {
                         const brandLink = brand.link || (brandId ? `/brand/${brandId}` : '#');
                         
                         return `
-                        <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-3">
                             <div class="brand-grid-item position-relative">
                                 <a href="${htmlEscape(brandLink)}" class="brand-grid-link">
                                     <div class="brand-grid-logo-wrapper">
